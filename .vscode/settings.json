@@ -1,1 +1,13 @@
-{}
+{
+	"files.exclude":  {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/.docker-run-cache": true,
+		"**/.DS_Store": true,
+		"**/Thumbs.db": true
+	},
+	"files.watcherExclude": {
+		"**/.pnpm-store/**": true,
+		"**/node_modules/*/**": true
+	}
+}
