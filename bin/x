@@ -1,0 +1,76 @@
+#!/bin/sh
+
+set -eu
+
+brute_find() {
+	local op="$1" cue="$2" dir="$3"
+
+	while true; do
+
+		if [ $op "$dir/$cue" ]; then
+			echo "$dir"
+		elif [ / != "${dir:-/}" ]; then
+			dir="${dir%/*}"
+			continue
+		fi
+
+		return
+	done
+}
+
+find_run_sh() {
+	local dir="${1:-$PWD}"
+	local try_repo=true
+	local ws=
+
+	while true; do
+
+		[ "$PWD" = "$dir" ] || cd "$dir"
+
+		# find root of repo workspace
+		if $try_repo; then
+			ws="$(brute_find -d .repo "$PWD")"
+			[ -d "$ws" ] || try_repo=false
+		fi
+
+		# or find root of .git repository
+		if [ ! -d "$ws" ]; then
+			ws="$(git rev-parse --show-superproject-working-tree 2> /dev/null || true)"
+			[ -d "$ws" ] || ws="$(git rev-parse --show-toplevel 2> /dev/null || true)"
+		fi
+
+		if [ ! -d "$ws" ]; then
+			# no repo? find anything then
+			dir="$(brute_find -x run.sh "$PWD")"
+			[ -z "$dir" ] || echo "$dir/run.sh"
+		elif [ -x "$ws/run.sh" ]; then
+			# found at repo's root
+			echo "$ws/run.sh"
+		elif [ / != "${ws:-/}" ]; then
+			# check on the parent's then
+			dir="${ws%/*}"
+			ws=
+			continue
+		fi
+
+		return
+	done
+}
+
+run_sh="$(find_run_sh)"
+
+if test "x--root" = "x${1:-}"; then
+
+	if [ -x "$run_sh" ]; then
+		# found
+		echo "$(dirname "$run_sh")"
+		exit 0
+	fi
+
+	# failed to find workspace
+	exit 1
+elif [ -x "$run_sh" ]; then
+	exec "$run_sh" "$@"
+elif [ "$#" -gt 0 ]; then
+	exec "$@"
+fi

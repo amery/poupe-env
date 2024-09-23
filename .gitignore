@@ -1,2 +1,4 @@
 /.devcontainer/Dockerfile
 /.docker-run-cache
+/bin/*
+!/bin/x
