@@ -1,0 +1,45 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+{
+  "name": "Ubuntu",
+  "build": {
+    "dockerfile": "./Dockerfile"
+  },
+
+  // Features to add to the dev container. More info: https://containers.dev/features.
+  // "features": {},
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  // "forwardPorts": [],
+
+  // Run Environment
+  "initializeCommand": ".devcontainer/init.sh",
+
+  "containerEnv": {
+    "WS": "${localWorkspaceFolder}",
+    "CURDIR": "${localWorkspaceFolder}",
+    "GOPATH": "${localWorkspaceFolder}"
+  },
+
+  // Volumes
+  "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached",
+  "workspaceFolder": "${localWorkspaceFolder}",
+
+  "mounts": [{
+    "source": "${localWorkspaceFolder}/.docker-run-cache/${localEnv:HOME}",
+    "target": "${localEnv:HOME}",
+    "type": "bind"
+  }],
+
+  // Configure tool-specific properties.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "EditorConfig.EditorConfig",
+        "golang.go",
+        "ms-vscode.makefile-tools",
+        "GitHub.vscode-pull-request-github"
+      ]
+    }
+  }
+}

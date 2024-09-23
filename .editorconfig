@@ -1,0 +1,42 @@
+# https://editorconfig.org
+#
+
+# top-most EditorConfig file
+#
+root = true
+
+# Unix-style new lines and UTF-8 encoding
+# on every file.
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+# and default tab-8 indentation by default
+indent_style = tab
+indent_size = 8
+
+# Markdown
+[*.md]
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = false
+
+# Go
+[*.go]
+indent_style = tab
+indent_size = 4
+
+# Python
+[*.py]
+indent_style = space
+indent_size = 4
+
+# ECMAScript
+[*.{cjs,mjs,js,ts}]
+indent_style = space
+indent_size = 2
+
+[{package,tsconfig}.json]
+indent_style = space
+indent_size = 2
