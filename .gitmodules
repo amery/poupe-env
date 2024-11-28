@@ -1,0 +1,9 @@
+[submodule "src/github.com/poupe-ui/eslint-config"]
+	path = src/github.com/poupe-ui/eslint-config
+	url = https://github.com/poupe-ui/eslint-config
+[submodule "src/github.com/poupe-ui/poupe"]
+	path = src/github.com/poupe-ui/poupe
+	url = https://github.com/poupe-ui/poupe
+[submodule "src/github.com/poupe-ui/poupe-website"]
+	path = src/github.com/poupe-ui/poupe-website
+	url = https://github.com/poupe-ui/poupe-website
