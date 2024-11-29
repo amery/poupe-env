@@ -1,5 +1,6 @@
 /.devcontainer/Dockerfile
 /.docker-run-cache
+/.pnpm-store
 /bin/*
 !/bin/x
 /pkg/mod
