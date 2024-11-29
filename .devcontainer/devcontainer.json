@@ -35,10 +35,19 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "christian-kohler.path-intellisense",
+        "Compulim.vscode-ipaddress",
+        "dbaeumer.vscode-eslint",
         "EditorConfig.EditorConfig",
+        "GitHub.vscode-pull-request-github",
+        "Github.vscode-github-actions",
         "golang.go",
+        "maattdd.gitless",
         "ms-vscode.makefile-tools",
-        "GitHub.vscode-pull-request-github"
+        "streetsidesoftware.code-spell-checker",
+        "streetsidesoftware.code-spell-checker-british-english",
+        "Vue.volar"
       ]
     }
   }
