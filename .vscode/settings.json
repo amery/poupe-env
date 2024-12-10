@@ -4,10 +4,11 @@
 		"**/.git/subtree-cache/**": true,
 		"**/.docker-run-cache": true,
 		"**/.DS_Store": true,
-		"**/Thumbs.db": true
+		"**/Thumbs.db": true,
+		"src/**": true
 	},
 	"files.watcherExclude": {
 		"**/.pnpm-store/**": true,
-		"**/node_modules/*/**": true
+		"**/node_modules/*/**": true,
 	}
 }

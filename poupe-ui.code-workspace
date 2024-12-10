@@ -1,0 +1,48 @@
+{
+	"folders": [
+		{
+			"name": "root",
+			"path": "."
+		},
+		{
+			"name": "3dprintedawe.co.uk",
+			"path": "src/github.com/poupe-ui/3dprintedawe-website"
+		},
+		{
+			"name": "apptly.co",
+			"path": "src/github.com/poupe-ui/apptly-website"
+		},
+		{
+			"name": "poupe.dev",
+			"path": "src/github.com/poupe-ui/poupe-website"
+		},
+		{
+			"name": "@poupe/eslint-config",
+			"path": "src/github.com/poupe-ui/eslint-config"
+		},
+		{
+			"name": "@poupe/nuxt",
+			"path": "src/github.com/poupe-ui/poupe/packages/poupe-nuxt"
+		},
+		{
+			"name": "@poupe/vue",
+			"path": "src/github.com/poupe-ui/poupe/packages/poupe-vue"
+		},
+		{
+			"name": "@poupe/theme-builder",
+			"path": "src/github.com/poupe-ui/poupe/packages/theme-builder"
+		},
+	],
+	"settings": {
+		"cSpell.words": [
+			"apptly",
+			"nuxt",
+			"poupe"
+		]
+	},
+	"extensions": {
+		"recommendations": [
+			"vue.volar"
+		]
+	}
+}
