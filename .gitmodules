@@ -7,3 +7,6 @@
 [submodule "src/github.com/poupe-ui/poupe-website"]
 	path = src/github.com/poupe-ui/poupe-website
 	url = https://github.com/poupe-ui/poupe-website
+[submodule "src/github.com/poupe-ui/material-color-utilities"]
+	path = src/github.com/poupe-ui/material-color-utilities
+	url = https://github.com/poupe-ui/material-color-utilities
