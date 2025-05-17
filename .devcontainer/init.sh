@@ -2,32 +2,71 @@
 
 set -eu
 
+err() {
+	if [ $# -eq 0 ]; then
+		cat
+	else
+		echo "$*"
+	fi | sed -e 's|^|E:|g' >&2
+}
+
+die() {
+	err "$@"
+	exit 1
+}
+
 cd "$(dirname "$0")/.."
 
-F=".devcontainer/Dockerfile"
-H=".docker-run-cache/home"
+B=".devcontainer"
+C=".docker-run-cache"
 
-exec > "$F~"
-trap "rm -f '$F~'" EXIT
 
-cat docker/Dockerfile
+[ -n "${USER:-}" ] || USER=$(id -un)
+[ -d "${HOME:-}" ] || die "no HOME"
 
-cat <<EOT
+DOCKERFILE=docker/Dockerfile
 
-VOLUME [ "${HOME}" ]
+get_metadata() {
+	local FROM=$(sed -n -e 's|^[\t ]*FROM[\t ]\+\([^\t ]\+\)[\t ]*$|\1|p' "$DOCKERFILE" | tail -n1)
 
-# User
-RUN \\
-	useradd -r -s /bin/bash -d "${HOME}" ${USER} && \\
-	cp -a /etc/skel "${HOME}"
+	${DOCKER:-docker} inspect --format='{{index .Config.Labels "devcontainer.metadata"}}' "$FROM" || echo '[]'
+}
+
+metadata() {
+	get_metadata | jq -c '. + [{"remoteUser": $user}]' --arg user "$USER"
+}
+
+rename() {
+	local T="$1" F="$2"
+
+	if ! test -s "$F" || ! diff -u "$F" "$T" >&2; then
+		mv "$T" "$F"
+	else
+		rm -f "$T"
+	fi
+}
+
+gen_dockerfile() {
+	cat "$DOCKERFILE"
+
+	cat <<EOT
+
+# bypassed entrypoint
+#
+RUN /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
+
+# run as user
+#
+LABEL devcontainer.metadata='$(metadata)'
 
 USER ${USER}
 EOT
+}
 
-if ! test -s "$F" || ! diff -u "$F" "$F~" >&2; then
-	mv "$F~" "$F"
-fi
+F="$B/Dockerfile"
+T="$F.$$"
+trap "rm -f '$T'" EXIT
+gen_dockerfile > "$T"
+rename "$T" "$F"
 
-for x in $USER; do
-	mkdir -p "$H/$x"
-done
+mkdir -p "$C${HOME}" "$C${PWD}"
