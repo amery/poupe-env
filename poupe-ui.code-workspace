@@ -17,31 +17,80 @@
 			"path": "src/github.com/poupe-ui/poupe-website"
 		},
 		{
+			"name": "@poupe/css",
+			"path": "src/github.com/poupe-ui/poupe/packages/@poupe-css"
+		},
+		{
 			"name": "@poupe/eslint-config",
 			"path": "src/github.com/poupe-ui/eslint-config"
 		},
 		{
 			"name": "@poupe/nuxt",
-			"path": "src/github.com/poupe-ui/poupe/packages/poupe-nuxt"
+			"path": "src/github.com/poupe-ui/poupe/packages/@poupe-nuxt"
+		},
+		{
+			"name": "@poupe/tailwindcss",
+			"path": "src/github.com/poupe-ui/poupe/packages/@poupe-tailwindcss"
 		},
 		{
 			"name": "@poupe/vue",
-			"path": "src/github.com/poupe-ui/poupe/packages/poupe-vue"
+			"path": "src/github.com/poupe-ui/poupe/packages/@poupe-vue"
 		},
 		{
 			"name": "@poupe/theme-builder",
-			"path": "src/github.com/poupe-ui/poupe/packages/theme-builder"
+			"path": "src/github.com/poupe-ui/poupe/packages/@poupe-theme-builder"
 		},
+		{
+			"path": "src/github.com/poupe-ui/poupe"
+		},
+		{
+			"path": "src/github.com/poupe-ui/material-color-utilities"
+		}
 	],
 	"settings": {
+		// Editor
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "always",
+		},
+		"editor.quickSuggestions": {
+			"strings": true,
+			"other": true,
+			"comments": true
+		},
+		// Explorer
+		"files.associations": {
+			"*.css": "tailwindcss"
+		},
+		// cSpell
+		"cSpell.language": "en-GB",
 		"cSpell.words": [
+			"3dprintedawe",
 			"apptly",
+			"ARGB",
+			"bradlc",
+			"dbaeumer",
+			"defu",
+			"lcweb",
 			"nuxt",
-			"poupe"
-		]
+			"poupe",
+			"volar"
+		],
+		// ESLint
+		"eslint.format.enable": true,
+		"eslint.useFlatConfig": true,
+		// SourceGraph
+		"amp.commands.allowlist": [
+			"pnpm type-check"
+		],
 	},
 	"extensions": {
 		"recommendations": [
+			"bradlc.vscode-tailwindcss",
+			"christian-kohler.path-intellisense",
+			"dbaeumer.vscode-eslint",
+			"editorconfig.editorconfig",
+			"streetsidesoftware.code-spell-checker",
+			"streetsidesoftware.code-spell-checker-british-english",
 			"vue.volar"
 		]
 	}
