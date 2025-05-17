@@ -7,9 +7,3 @@
 [submodule "src/github.com/poupe-ui/poupe-website"]
 	path = src/github.com/poupe-ui/poupe-website
 	url = https://github.com/poupe-ui/poupe-website
-[submodule "src/github.com/poupe-ui/3dprintedawe-website"]
-	path = src/github.com/poupe-ui/3dprintedawe-website
-	url = https://github.com/poupe-ui/3dprintedawe-website
-[submodule "src/github.com/poupe-ui/apptly-website"]
-	path = src/github.com/poupe-ui/apptly-website
-	url = https://github.com/poupe-ui/apptly-website
