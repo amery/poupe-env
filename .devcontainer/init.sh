@@ -15,6 +15,79 @@ die() {
 	exit 1
 }
 
+# Detect OS type
+detect_os() {
+	case "$(uname -s)" in
+		Linux*)  echo "linux" ;;
+		Darwin*) echo "macos" ;;
+		*)       echo "unknown" ;;
+	esac
+}
+
+OS_TYPE=$(detect_os)
+
+# Platform-specific checks
+case "$OS_TYPE" in
+	macos)
+		# Check for Homebrew on macOS
+		if ! command -v brew >/dev/null 2>&1; then
+			die <<-EOT
+			Homebrew is required on macOS. Install from https://brew.sh
+			Run: /bin/bash -c "\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+			EOT
+		fi
+
+		# Check for jq, offer to install if missing
+		if ! command -v jq >/dev/null 2>&1; then
+			die <<-EOT
+			jq is required but not installed.
+			Install with: brew install jq
+			EOT
+		fi
+
+		# Docker socket location on macOS
+		DOCKER_SOCKET="/var/run/docker.sock"
+		if [ ! -S "$DOCKER_SOCKET" ]; then
+			DOCKER_SOCKET="$HOME/.docker/run/docker.sock"
+			if [ ! -S "$DOCKER_SOCKET" ]; then
+				die <<-EOT
+				Docker socket not found. Ensure Docker Desktop is running.
+				Checked locations:
+				  - /var/run/docker.sock
+				  - $HOME/.docker/run/docker.sock
+				EOT
+			fi
+		fi
+		;;
+
+	linux)
+		# Check for jq on Linux
+		if ! command -v jq >/dev/null 2>&1; then
+			die <<-EOT
+			jq is required but not installed.
+			Install with:
+			  Debian/Ubuntu: sudo apt-get install jq
+			  RHEL/CentOS: sudo yum install jq
+			  Arch: sudo pacman -S jq
+			EOT
+		fi
+
+		# Check Docker permissions
+		if ! docker info >/dev/null 2>&1; then
+			die <<-EOT
+			Cannot connect to Docker daemon. Ensure Docker is running and you have permissions.
+			You may need to add your user to the docker group:
+			  sudo usermod -aG docker $USER
+			Then log out and back in.
+			EOT
+		fi
+		;;
+
+	*)
+		die "Unsupported operating system: $(uname -s)"
+		;;
+esac
+
 cd "$(dirname "$0")/.."
 
 B=".devcontainer"
@@ -63,7 +136,7 @@ $(cat "$DOCKERFILE")
 
 # bypassed entrypoint
 #
-RUN sh /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
+RUN /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
 
 # run as user
 #
@@ -84,6 +157,17 @@ rename "$T" "$F"
 gen_json_overlay() {
 	local ws='${localWorkspaceFolder}'
 	local home='${localEnv:HOME}'
+
+	# Platform-specific adjustments
+	case "$OS_TYPE" in
+		macos)
+			# macOS-specific mounts or settings could go here
+			;;
+		linux)
+			# Linux-specific mounts or settings could go here
+			;;
+	esac
+
 	cat <<EOT
 {
 	"containerEnv": {
@@ -119,7 +203,12 @@ json_merge() {
 	jq -e -s '.[0] * .[1]' "$@" --indent 2
 }
 
+# devcontainer.json must exist in version control
 F="$B/devcontainer.json"
+if [ ! -f "$F" ]; then
+	die "devcontainer.json not found. This file should come from version control."
+fi
+
 T0="$F.0.$$"
 T1="$F.1.$$"
 T2="$F.2.$$"
@@ -164,3 +253,13 @@ for x in \
 		;;
 	esac
 done
+
+# Platform-specific success message
+case "$OS_TYPE" in
+	macos)
+		echo "Devcontainer initialization completed successfully on macOS"
+		;;
+	linux)
+		echo "Devcontainer initialization completed successfully on Linux"
+		;;
+esac
