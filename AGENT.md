@@ -67,7 +67,7 @@ Mount point creation:
 
 - **Sandboxed directories**: `.docker-run-cache/$HOME`
 - **Host-bound directories**: `.claude` (created in both locations)
-- **Host-bound files**: `.claude.json` (touched in both locations)
+- **Host-bound files**: `.claude.json` (touched in cache, initialized with `{}` on host if empty)
 
 ## How init.sh Works
 
@@ -110,8 +110,9 @@ Here's a detailed breakdown of its operation:
    - Creates host-bound directories in both locations:
      - `$PWD` (current directory)
      - `$HOME/.claude` (AI config directory)
-   - Touches host-bound files in both locations:
-     - `$HOME/.claude.json` (AI state file)
+   - Handles host-bound files:
+     - `$HOME/.claude.json`: Touched in cache, initialized with `{}` on host if empty
+     - Uses case pattern to handle JSON files specially
 
 ### Key Design Decisions
 

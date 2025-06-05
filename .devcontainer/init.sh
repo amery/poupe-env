@@ -154,5 +154,13 @@ done
 for x in \
 	"$HOME/.claude.json" \
 	; do
-	touch "$C$x" "$x"
+	touch "$C$x"
+	case "$x" in
+	*.json)
+		[ -s "$x" ] || echo '{}' > "$x"
+		;;
+	*)
+		touch "$x"
+		;;
+	esac
 done
