@@ -16,6 +16,16 @@
       "source": "${localWorkspaceFolder}/.docker-run-cache/${localEnv:HOME}",
       "target": "${localEnv:HOME}",
       "type": "bind"
+    },
+    {
+      "source": "${localEnv:HOME}/.claude",
+      "target": "${localEnv:HOME}/.claude",
+      "type": "bind"
+    },
+    {
+      "source": "${localEnv:HOME}/.claude.json",
+      "target": "${localEnv:HOME}/.claude.json",
+      "type": "bind"
     }
   ],
   "customizations": {

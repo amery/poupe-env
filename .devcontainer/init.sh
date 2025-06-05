@@ -97,6 +97,14 @@ gen_json_overlay() {
 		"source": "$ws/$C/$home",
 		"target": "$home",
 		"type": "bind"
+	}, {
+		"source": "$home/.claude",
+		"target": "$home/.claude",
+		"type": "bind"
+	}, {
+		"source": "$home/.claude.json",
+		"target": "$home/.claude.json",
+		"type": "bind"
 	}]
 }
 EOT
@@ -123,5 +131,28 @@ json_merge "$T0" "$T1" > "$T2"
 rename "$T2" "$F"
 rm -f "$T0" "$T1"
 
+#
 # mount points
-mkdir -p "$C$HOME" "$C$PWD"
+#
+
+# Bound directories (sandboxed)
+for x in \
+	"$HOME" \
+	; do
+	mkdir -p "$C$x"
+done
+
+# Host-bound directories
+for x in \
+	"$PWD" \
+	"$HOME/.claude" \
+	; do
+	mkdir -p "$C$x" "$x"
+done
+
+# Host-bound files
+for x in \
+	"$HOME/.claude.json" \
+	; do
+	touch "$C$x" "$x"
+done
