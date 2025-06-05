@@ -4,17 +4,6 @@
     "dockerfile": "./Dockerfile"
   },
   "initializeCommand": ".devcontainer/init.sh",
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "EditorConfig.EditorConfig",
-        "ms-vscode.cpptools",
-        "ms-vscode.cpptools-extension-pack",
-        "xaver.clang-format",
-        "golang.go"
-      ]
-    }
-  },
   "containerEnv": {
     "GOPATH": "${localWorkspaceFolder}",
     "WS": "${localWorkspaceFolder}",
@@ -28,5 +17,15 @@
       "target": "${localEnv:HOME}",
       "type": "bind"
     }
-  ]
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "EditorConfig.EditorConfig",
+        "golang.go",
+        "ms-vscode.makefile-tools",
+        "GitHub.vscode-pull-request-github"
+      ]
+    }
+  }
 }

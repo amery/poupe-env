@@ -2,32 +2,126 @@
 
 set -eu
 
+err() {
+	if [ $# -eq 0 ]; then
+		cat
+	else
+		echo "$*"
+	fi | sed -e 's|^|E:|g' >&2
+}
+
+die() {
+	err "$@"
+	exit 1
+}
+
 cd "$(dirname "$0")/.."
 
-F=".devcontainer/Dockerfile"
-H=".docker-run-cache/home"
+B=".devcontainer"
+C=".docker-run-cache"
 
-exec > "$F~"
-trap "rm -f '$F~'" EXIT
+[ -n "${USER:-}" ] || USER=$(id -un)
+[ -d "${HOME:-}" ] || die "no HOME"
 
-cat docker/Dockerfile
+# Renames a file only if the target file does not exist or differs from the source file.
+#
+# Args:
+#   $1 - Temporary file path (source)
+#   $2 - Target file path
+#
+# Behavior:
+#   - If the target file is empty or different from the source, moves the source file to the target
+#   - If the target file is identical, removes the source file
+#   - Useful for atomic file updates with minimal changes
+rename() {
+	local T="$1" F="$2"
 
-cat <<EOT
+	if ! test -s "$F" || ! diff -u "$F" "$T" >&2; then
+		mv "$T" "$F"
+	else
+		rm -f "$T"
+	fi
+}
 
-VOLUME [ "${HOME}" ]
+# Dockerfile
+#
+DOCKERFILE=docker/Dockerfile
 
-# User
-RUN \\
-	useradd -r -s /bin/bash -d "${HOME}" ${USER} && \\
-	cp -a /etc/skel "${HOME}"
+get_metadata() {
+	local FROM=$(sed -n -e 's|^[\t ]*FROM[\t ]\+\([^\t ]\+\)[\t ]*$|\1|p' "$DOCKERFILE" | tail -n1)
+
+	${DOCKER:-docker} inspect --format='{{index .Config.Labels "devcontainer.metadata"}}' "$FROM" || echo '[]'
+}
+
+metadata() {
+	get_metadata | jq -c '. + [{"remoteUser": $USER}]' --arg USER "$USER"
+}
+
+gen_dockerfile() {
+	cat <<EOT
+$(cat "$DOCKERFILE")
+
+# bypassed entrypoint
+#
+RUN sh -x /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
+
+# run as user
+#
+LABEL devcontainer.metadata='$(metadata)'
 
 USER ${USER}
 EOT
+}
 
-if ! test -s "$F" || ! diff -u "$F" "$F~" >&2; then
-	mv "$F~" "$F"
-fi
+F="$B/Dockerfile"
+T="$F.$$"
+trap "rm -f '$T'" EXIT
+gen_dockerfile > "$T"
+rename "$T" "$F"
 
-for x in $USER; do
-	mkdir -p "$H/$x"
-done
+# devcontainer.json
+#
+gen_json_overlay() {
+	local ws='${localWorkspaceFolder}'
+	local home='${localEnv:HOME}'
+	cat <<EOT
+{
+	"containerEnv": {
+		"GOPATH": "$ws",
+		"WS": "$ws",
+		"CURDIR": "$ws"
+	},
+	"workspaceMount": "source=$ws,target=$ws,type=bind,consistency=cached",
+	"workspaceFolder": "$ws",
+	"mounts": [{
+		"source": "$ws/$C/$home",
+		"target": "$home",
+		"type": "bind"
+	}]
+}
+EOT
+}
+
+
+json_sanitize() {
+	sed -e 's|//.*||g' -e '/^[[:space:]]*$/d' "$1" | jq -e .
+}
+
+json_merge() {
+	jq -e -s '.[0] * .[1]' "$@" --indent 2
+}
+
+F="$B/devcontainer.json"
+T0="$F.0.$$"
+T1="$F.1.$$"
+T2="$F.2.$$"
+trap "rm -f '$T0' '$T1' '$T2'" EXIT
+
+json_sanitize "$F" > "$T0"
+gen_json_overlay > "$T1"
+json_merge "$T0" "$T1" > "$T2"
+rename "$T2" "$F"
+rm -f "$T0" "$T1"
+
+# mount points
+mkdir -p "$C$HOME" "$C$PWD"
