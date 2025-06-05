@@ -171,22 +171,57 @@ Expected output should show bind mounts, not ext4 filesystem mounts.
 
 ## Development Workflow
 
-1. **First Time Setup**:
-   - Clone the repository
-   - `initializeCommand` in devcontainer.json runs init.sh automatically
+### Submodule Management
 
-2. **Container Lifecycle**:
-   - Container creation triggers init.sh via `initializeCommand`
-   - init.sh runs on the HOST (not in container) with Docker access
-   - Dockerfile is generated with current user metadata
-   - JSON overlay is merged with existing devcontainer.json
-   - Mount points created in .docker-run-cache and host as needed
-   - Claude configuration files are ensured to exist
+This project uses Git submodules. Proper initialization is critical:
 
-3. **Persistence**:
-   - Container-specific configurations persist in `.docker-run-cache/${HOME}`
-   - Claude configurations are shared via bind mounts
-   - Workspace remains mounted at the same path as the host
+1. **Recursive Clone (Recommended)**:
+
+   ```bash
+   git clone --recursive https://github.com/amery/apptly-dev
+   cd apptly-dev/dev-env
+   ```
+
+2. **If You Forgot --recursive**:
+
+   ```bash
+   # From within the cloned repository
+   git submodule update --init --recursive
+   ```
+
+3. **Updating Submodules**:
+
+   ```bash
+   # Update to latest commits
+   git submodule update --remote --merge
+
+   # Check submodule status
+   git submodule status
+   ```
+
+**IMPORTANT**: Submodules MUST be initialized before creating the
+DevContainer. The container build will fail if submodules are missing.
+
+### First Time Setup
+
+1. Clone the repository with submodules (see above)
+2. `initializeCommand` in devcontainer.json runs init.sh automatically
+3. VS Code will build and start the DevContainer
+
+### Container Lifecycle
+
+- Container creation triggers init.sh via `initializeCommand`
+- init.sh runs on the HOST (not in container) with Docker access
+- Dockerfile is generated with current user metadata
+- JSON overlay is merged with existing devcontainer.json
+- Mount points created in .docker-run-cache and host as needed
+- Claude configuration files are ensured to exist
+
+### Persistence
+
+- Container-specific configurations persist in `.docker-run-cache/${HOME}`
+- Claude configurations are shared via bind mounts
+- Workspace remains mounted at the same path as the host
 
 ## Code Quality Standards
 
@@ -243,5 +278,7 @@ When working with both projects:
 - **Coordination needed**: Major changes to docker-builder's run.sh or base
   images may require updates here
 
-For docker-builder implementation details, see:
-https://github.com/amery/docker-builder/blob/master/AGENT.md
+For docker-builder implementation details, see the
+[docker-builder AGENT documentation][docker-builder-agent].
+
+[docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENT.md

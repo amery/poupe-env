@@ -40,15 +40,30 @@ details on available base images and the build infrastructure, see the
 
 ### Setup
 
-1. Clone the repository:
+1. Clone the repository with submodules:
 
    ```bash
    git clone --recursive <repository-url>
    cd dev-env
+   ```
+
+   **Important**: If you forgot `--recursive`, initialize submodules before
+   proceeding:
+
+   ```bash
+   git submodule update --init --recursive
+   ```
+
+   For detailed submodule management instructions, see
+   [AGENT.md](./AGENT.md#submodule-management).
+
+2. Open in VS Code:
+
+   ```bash
    code .
    ```
 
-2. When VS Code opens, click "Reopen in Container" when prompted
+3. When VS Code opens, click "Reopen in Container" when prompted
    (or use Command Palette → "Dev Containers: Reopen in Container")
 
 The container will automatically initialize on first run. The init.sh script
@@ -171,6 +186,7 @@ If you encounter issues, try rebuilding:
    - Ensures you have the newest versions of Go, Node.js, and tools
 
 You can also access these options from VS Code's UI:
+
 - Click the remote indicator (bottom-left corner)
 - Select "Rebuild Container" or "Rebuild Container Without Cache"
 
@@ -185,6 +201,7 @@ This project is a specialized implementation of
   docker-builder infrastructure
 
 When docker-builder is updated:
+
 - Base image improvements automatically benefit this environment
 - Breaking changes may require updates to the Dockerfile or configuration
 - New features in `run.sh` become available through the symlink
