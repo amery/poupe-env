@@ -32,29 +32,17 @@ indent_size = 4
 indent_style = space
 indent_size = 4
 
-# JSON, YAML
-[*.{json,yaml,yml}]
-indent_type = space
+# JSON, YAML, TOML
+[*.{json,jsonc,yaml,yml,toml}]
+indent_style = space
 indent_size = 2
 
 # ECMAScript
-[*.{cjs,mjs,js,ts}]
+[*.{cjs,mjs,js,ts,jsx,tsx}]
 indent_style = space
 indent_size = 2
 
-[{package,tsconfig}.json]
-indent_style = space
-indent_size = 2
-
-# vscode
-[.vscode/*.json]
-indent_style = tab
-indent_size = 8
-
+# VSCode
 [*.code-workspace]
 indent_style = tab
-indent_style = 8
-
-[devcontainer.json]
-indent_style = space
-indent_size = 2
+indent_size = 8
