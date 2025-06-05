@@ -25,6 +25,11 @@ the `docker-ubuntu-vsc-base-builder` image with:
 - **VS Code Server**: Pre-configured for DevContainer support
 - **Build Tools**: Essential compilation and development utilities
 
+The docker-builder project provides the foundation for this DevContainer,
+including the base images, build system, and container runtime wrapper. For
+details on available base images and the build infrastructure, see the
+[docker-builder documentation](https://github.com/amery/docker-builder).
+
 ## Quick Start
 
 ### Prerequisites
@@ -169,11 +174,28 @@ You can also access these options from VS Code's UI:
 - Click the remote indicator (bottom-left corner)
 - Select "Rebuild Container" or "Rebuild Container Without Cache"
 
+## Relationship with docker-builder
+
+This project is a specialized implementation of
+[docker-builder](https://github.com/amery/docker-builder):
+
+- **Extends**: Uses docker-builder's `docker-apptly-builder` base image
+- **Leverages**: The `run.sh` script for container execution
+- **Demonstrates**: How to create DevContainer environments on top of
+  docker-builder infrastructure
+
+When docker-builder is updated:
+- Base image improvements automatically benefit this environment
+- Breaking changes may require updates to the Dockerfile or configuration
+- New features in `run.sh` become available through the symlink
+
 ## Documentation
 
 - [AGENT.md](./AGENT.md) - Technical implementation details for AI agents
   and developers
 - [LICENCE.txt](./LICENCE.txt) - Project license information
+- [docker-builder](https://github.com/amery/docker-builder) - Base
+  infrastructure documentation
 
 ## License
 

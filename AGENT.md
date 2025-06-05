@@ -22,6 +22,18 @@ This project uses VS Code DevContainers with a custom sandboxed home
 directory approach to provide isolated development environments while
 preserving access to essential host resources.
 
+### Foundation: docker-builder
+
+This project builds upon [amery/docker-builder](https://github.com/amery/docker-builder),
+which provides:
+
+- **Base Images**: The `docker-apptly-builder` image used as foundation
+- **Run Script**: The `docker/run.sh` wrapper for container execution
+- **Build System**: Automated Docker image building and management
+
+See the [docker-builder documentation](https://github.com/amery/docker-builder/blob/master/AGENT.md)
+for details on the underlying infrastructure.
+
 ### Sandboxed Home Directory
 
 The container uses `.docker-run-cache/${HOME}` as an isolated home directory:
@@ -212,3 +224,24 @@ The devcontainer is configured for seamless AI assistant integration:
 
 This architecture ensures AI assistants have consistent access to their
 configuration while working in an isolated container environment.
+
+## Relationship with docker-builder
+
+This project demonstrates how to extend docker-builder for specific use cases:
+
+1. **Base Image Usage**: Extends `quay.io/amery/docker-apptly-builder:latest`
+   from docker-builder
+2. **Run Script Integration**: Symlinks to docker-builder's `run.sh` for
+   consistent container execution
+3. **DevContainer Extension**: Adds VS Code DevContainer configuration on top
+   of docker-builder's base images
+
+When working with both projects:
+
+- **docker-builder changes**: Affect all environments using its base images
+- **dev-env changes**: Only affect this specific DevContainer environment
+- **Coordination needed**: Major changes to docker-builder's run.sh or base
+  images may require updates here
+
+For docker-builder implementation details, see:
+https://github.com/amery/docker-builder/blob/master/AGENT.md
