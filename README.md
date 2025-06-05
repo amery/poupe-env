@@ -146,15 +146,26 @@ The container sets these environment variables:
   the Dev Containers extension is installed in VS Code
 - **Mount permission errors**: Run `git status` to ensure the repository
   is clean, then rebuild the container
-- **Claude configuration not persisting**: Check that `~/.claude` exists
-  on your host system before opening the container
+- **Claude configuration not persisting**: Ensure the init script ran
+  successfully (it creates `~/.claude` if needed)
 
 ### Rebuilding the Container
 
 If you encounter issues, try rebuilding:
 
-1. Command Palette → "Dev Containers: Rebuild Container"
-2. Or: "Dev Containers: Rebuild Container Without Cache" for a clean build
+1. **Quick Rebuild**: Command Palette → "Dev Containers: Rebuild Container"
+   - Reuses cached Docker layers when possible
+   - Faster but may not pick up base image updates
+
+2. **Clean Rebuild**: Command Palette → "Dev Containers: Rebuild Container
+   Without Cache"
+   - Removes all cached layers and rebuilds from scratch
+   - Downloads latest base image updates
+   - Ensures you have the newest versions of Go, Node.js, and tools
+
+You can also access these options from VS Code's UI:
+- Click the remote indicator (bottom-left corner)
+- Select "Rebuild Container" or "Rebuild Container Without Cache"
 
 ## Documentation
 
