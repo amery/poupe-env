@@ -1,37 +1,33 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
   "name": "Ubuntu",
   "build": {
     "dockerfile": "./Dockerfile"
   },
-
-  // Features to add to the dev container. More info: https://containers.dev/features.
-  // "features": {},
-
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
-
-  // Run Environment
   "initializeCommand": ".devcontainer/init.sh",
-
   "containerEnv": {
+    "GOPATH": "${localWorkspaceFolder}",
     "WS": "${localWorkspaceFolder}",
-    "CURDIR": "${localWorkspaceFolder}",
-    "GOPATH": "${localWorkspaceFolder}"
+    "CURDIR": "${localWorkspaceFolder}"
   },
-
-  // Volumes
   "workspaceMount": "source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached",
   "workspaceFolder": "${localWorkspaceFolder}",
-
-  "mounts": [{
-    "source": "${localWorkspaceFolder}/.docker-run-cache/${localEnv:HOME}",
-    "target": "${localEnv:HOME}",
-    "type": "bind"
-  }],
-
-  // Configure tool-specific properties.
+  "mounts": [
+    {
+      "source": "${localWorkspaceFolder}/.docker-run-cache/${localEnv:HOME}",
+      "target": "${localEnv:HOME}",
+      "type": "bind"
+    },
+    {
+      "source": "${localEnv:HOME}/.claude",
+      "target": "${localEnv:HOME}/.claude",
+      "type": "bind"
+    },
+    {
+      "source": "${localEnv:HOME}/.claude.json",
+      "target": "${localEnv:HOME}/.claude.json",
+      "type": "bind"
+    }
+  ],
   "customizations": {
     "vscode": {
       "extensions": [
