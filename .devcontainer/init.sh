@@ -54,7 +54,7 @@ get_metadata() {
 }
 
 metadata() {
-	get_metadata | jq -c '. + [{"remoteUser": $USER}]' --arg USER "$USER"
+	get_metadata | jq -c '. + [{"containerUser": $USER}]' --arg USER "$USER"
 }
 
 gen_dockerfile() {
@@ -63,7 +63,7 @@ $(cat "$DOCKERFILE")
 
 # bypassed entrypoint
 #
-RUN sh -x /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
+RUN sh /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
 
 # run as user
 #

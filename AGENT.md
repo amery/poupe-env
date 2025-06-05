@@ -53,6 +53,8 @@ The `.devcontainer/init.sh` script prepares the environment:
 Key functions in `init.sh`:
 
 - `gen_dockerfile`: Extends base Dockerfile with user metadata
+  - Uses `containerUser` in metadata label (not `remoteUser`)
+  - Removes verbose shell execution (`sh` instead of `sh -x`)
 - `gen_json_overlay`: Creates mount configuration including:
   - Sandboxed home directory mount
   - Claude directory bind mount
@@ -93,9 +95,9 @@ Here's a detailed breakdown of its operation:
    - Reads `docker/Dockerfile` as the base
    - Extracts metadata from base image using Docker inspect
    - Appends user-specific configuration:
-     - Runs `/devcontainer-init.sh` to bypass entrypoint
+     - Runs `/devcontainer-init.sh` to bypass entrypoint (without verbose output)
      - Sets container user to match host user
-     - Adds devcontainer metadata label
+     - Adds devcontainer metadata label with `containerUser` field
 
 3. **JSON Configuration Merge**:
    - **Step 1**: Sanitize existing `devcontainer.json` (remove comments)
