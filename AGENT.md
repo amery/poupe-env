@@ -22,6 +22,18 @@ This project uses VS Code DevContainers with a custom sandboxed home
 directory approach to provide isolated development environments while
 preserving access to essential host resources.
 
+### Foundation: docker-builder
+
+This project builds upon [amery/docker-builder](https://github.com/amery/docker-builder),
+which provides:
+
+- **Base Images**: The `docker-apptly-builder` image used as foundation
+- **Run Script**: The `docker/run.sh` wrapper for container execution
+- **Build System**: Automated Docker image building and management
+
+See the [docker-builder documentation](https://github.com/amery/docker-builder/blob/master/AGENT.md)
+for details on the underlying infrastructure.
+
 ### Sandboxed Home Directory
 
 The container uses `.docker-run-cache/${HOME}` as an isolated home directory:
@@ -53,6 +65,8 @@ The `.devcontainer/init.sh` script prepares the environment:
 Key functions in `init.sh`:
 
 - `gen_dockerfile`: Extends base Dockerfile with user metadata
+  - Uses `containerUser` in metadata label (not `remoteUser`)
+  - Removes verbose shell execution (`sh` instead of `sh -x`)
 - `gen_json_overlay`: Creates mount configuration including:
   - Sandboxed home directory mount
   - Claude directory bind mount
@@ -65,7 +79,7 @@ Mount point creation:
 
 - **Sandboxed directories**: `.docker-run-cache/$HOME`
 - **Host-bound directories**: `.claude` (created in both locations)
-- **Host-bound files**: `.claude.json` (touched in both locations)
+- **Host-bound files**: `.claude.json` (touched in cache, initialized with `{}` on host if empty)
 
 ## How init.sh Works
 
@@ -93,9 +107,9 @@ Here's a detailed breakdown of its operation:
    - Reads `docker/Dockerfile` as the base
    - Extracts metadata from base image using Docker inspect
    - Appends user-specific configuration:
-     - Runs `/devcontainer-init.sh` to bypass entrypoint
+     - Runs `/devcontainer-init.sh` to bypass entrypoint (without verbose output)
      - Sets container user to match host user
-     - Adds devcontainer metadata label
+     - Adds devcontainer metadata label with `containerUser` field
 
 3. **JSON Configuration Merge**:
    - **Step 1**: Sanitize existing `devcontainer.json` (remove comments)
@@ -108,8 +122,9 @@ Here's a detailed breakdown of its operation:
    - Creates host-bound directories in both locations:
      - `$PWD` (current directory)
      - `$HOME/.claude` (AI config directory)
-   - Touches host-bound files in both locations:
-     - `$HOME/.claude.json` (AI state file)
+   - Handles host-bound files:
+     - `$HOME/.claude.json`: Touched in cache, initialized with `{}` on host if empty
+     - Uses case pattern to handle JSON files specially
 
 ### Key Design Decisions
 
@@ -156,22 +171,57 @@ Expected output should show bind mounts, not ext4 filesystem mounts.
 
 ## Development Workflow
 
-1. **First Time Setup**:
-   - Clone the repository
-   - `initializeCommand` in devcontainer.json runs init.sh automatically
+### Submodule Management
 
-2. **Container Lifecycle**:
-   - Container creation triggers init.sh via `initializeCommand`
-   - init.sh runs on the HOST (not in container) with Docker access
-   - Dockerfile is generated with current user metadata
-   - JSON overlay is merged with existing devcontainer.json
-   - Mount points created in .docker-run-cache and host as needed
-   - Claude configuration files are ensured to exist
+This project uses Git submodules. Proper initialization is critical:
 
-3. **Persistence**:
-   - Container-specific configurations persist in `.docker-run-cache/${HOME}`
-   - Claude configurations are shared via bind mounts
-   - Workspace remains mounted at the same path as the host
+1. **Recursive Clone (Recommended)**:
+
+   ```bash
+   git clone --recursive https://github.com/amery/apptly-dev
+   cd apptly-dev/dev-env
+   ```
+
+2. **If You Forgot --recursive**:
+
+   ```bash
+   # From within the cloned repository
+   git submodule update --init --recursive
+   ```
+
+3. **Updating Submodules**:
+
+   ```bash
+   # Update to latest commits
+   git submodule update --remote --merge
+
+   # Check submodule status
+   git submodule status
+   ```
+
+**IMPORTANT**: Submodules MUST be initialized before creating the
+DevContainer. The container build will fail if submodules are missing.
+
+### First Time Setup
+
+1. Clone the repository with submodules (see above)
+2. `initializeCommand` in devcontainer.json runs init.sh automatically
+3. VS Code will build and start the DevContainer
+
+### Container Lifecycle
+
+- Container creation triggers init.sh via `initializeCommand`
+- init.sh runs on the HOST (not in container) with Docker access
+- Dockerfile is generated with current user metadata
+- JSON overlay is merged with existing devcontainer.json
+- Mount points created in .docker-run-cache and host as needed
+- Claude configuration files are ensured to exist
+
+### Persistence
+
+- Container-specific configurations persist in `.docker-run-cache/${HOME}`
+- Claude configurations are shared via bind mounts
+- Workspace remains mounted at the same path as the host
 
 ## Code Quality Standards
 
@@ -209,3 +259,26 @@ The devcontainer is configured for seamless AI assistant integration:
 
 This architecture ensures AI assistants have consistent access to their
 configuration while working in an isolated container environment.
+
+## Relationship with docker-builder
+
+This project demonstrates how to extend docker-builder for specific use cases:
+
+1. **Base Image Usage**: Extends `quay.io/amery/docker-apptly-builder:latest`
+   from docker-builder
+2. **Run Script Integration**: Symlinks to docker-builder's `run.sh` for
+   consistent container execution
+3. **DevContainer Extension**: Adds VS Code DevContainer configuration on top
+   of docker-builder's base images
+
+When working with both projects:
+
+- **docker-builder changes**: Affect all environments using its base images
+- **dev-env changes**: Only affect this specific DevContainer environment
+- **Coordination needed**: Major changes to docker-builder's run.sh or base
+  images may require updates here
+
+For docker-builder implementation details, see the
+[docker-builder AGENT documentation][docker-builder-agent].
+
+[docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENT.md
