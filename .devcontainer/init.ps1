@@ -24,7 +24,9 @@ $C = ".docker-run-cache"
 if (-not $env:USERNAME) {
     Exit-With-Error "no USERNAME environment variable"
 }
-$USER = $env:USERNAME
+# Sanitize username for Linux compatibility
+# Replace spaces and invalid characters with underscores, convert to lowercase
+$USER = $env:USERNAME -replace '[^a-zA-Z0-9._-]', '_' -replace '^[0-9]', '_$0' | ForEach-Object { $_.ToLower() }
 
 if (-not $env:USERPROFILE) {
     Exit-With-Error "no USERPROFILE"
@@ -71,17 +73,46 @@ function Get-UpdatedMetadata {
     return ($jsonObj | ConvertTo-Json -Compress)
 }
 
+# Function to translate Windows path to container path
+function Convert-ToContainerPath {
+    param([string]$WindowsPath)
+    
+    # Check if Docker is using WSL backend
+    $dockerInfo = & docker version --format json 2>$null | ConvertFrom-Json
+    $isWSL = $false
+    
+    if ($dockerInfo -and $dockerInfo.Server) {
+        # Check for WSL in Docker context or OS info
+        if ($dockerInfo.Server.Os -match 'linux' -and 
+            ($env:WSL_DISTRO_NAME -or (& docker context ls 2>$null | Select-String 'wsl'))) {
+            $isWSL = $true
+        }
+    }
+    
+    # Convert path based on Docker backend
+    if ($isWSL) {
+        # WSL format: /mnt/c/Users/...
+        return $WindowsPath -replace '^([A-Z]):\\', '/mnt/$1/' -replace '\\', '/' | 
+               ForEach-Object { $_.ToLower() }
+    } else {
+        # Docker Desktop format: /c/Users/...
+        return $WindowsPath -replace '^([A-Z]):\\', '/$1/' -replace '\\', '/'
+    }
+}
+
 # Generate Dockerfile content
 function Generate-Dockerfile {
     $baseContent = Get-Content $DOCKERFILE -Raw
     $metadata = Get-UpdatedMetadata
+    # Translate Windows home path to container path
+    $containerHome = Convert-ToContainerPath $env:USERPROFILE
 
     return @"
 $baseContent
 
 # bypassed entrypoint
 #
-RUN /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
+RUN /devcontainer-init.sh "$USER" "$containerHome" && rm -f /devcontainer-init.sh
 
 # run as user
 #
@@ -100,28 +131,34 @@ Rename-IfDifferent $T $F
 # Generate JSON overlay
 function Generate-JsonOverlay {
     # Note: VSCode variables will be resolved at runtime
+    # Translate Windows paths to container paths
+    
+    # Translate paths
+    $containerHome = Convert-ToContainerPath $env:USERPROFILE
+    $workspaceFolder = Convert-ToContainerPath $PWD.Path
+    
     $overlay = @{
         containerEnv = @{
-            GOPATH = '${localWorkspaceFolder}'
-            WS = '${localWorkspaceFolder}'
-            CURDIR = '${localWorkspaceFolder}'
+            GOPATH = $workspaceFolder
+            WS = $workspaceFolder
+            CURDIR = $workspaceFolder
         }
-        workspaceMount = 'source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached'
-        workspaceFolder = '${localWorkspaceFolder}'
+        workspaceMount = "source=${localWorkspaceFolder},target=$workspaceFolder,type=bind,consistency=cached"
+        workspaceFolder = $workspaceFolder
         mounts = @(
             @{
                 source = '${localWorkspaceFolder}/.docker-run-cache/${localEnv:USERPROFILE}'
-                target = '${localEnv:HOME}'
+                target = $containerHome
                 type = 'bind'
             },
             @{
                 source = '${localEnv:USERPROFILE}/.claude'
-                target = '${localEnv:HOME}/.claude'
+                target = "$containerHome/.claude"
                 type = 'bind'
             },
             @{
                 source = '${localEnv:USERPROFILE}/.claude.json'
-                target = '${localEnv:HOME}/.claude.json'
+                target = "$containerHome/.claude.json"
                 type = 'bind'
             }
         )

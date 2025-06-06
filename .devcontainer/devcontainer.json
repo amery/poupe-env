@@ -3,7 +3,7 @@
   "build": {
     "dockerfile": "./Dockerfile"
   },
-  "initializeCommand": ".devcontainer/init.sh",
+  "initializeCommand": "node .devcontainer/init.js",
   "containerEnv": {
     "GOPATH": "${localWorkspaceFolder}",
     "WS": "${localWorkspaceFolder}",

@@ -49,20 +49,28 @@ The devcontainer selectively shares resources between host and container:
 1. **Workspace**: Mounted at the same path as on host for consistency
 2. **Sandboxed Home**: Container home at `.docker-run-cache/${HOME}`
 3. **Tool Configs**: Specific directories bind-mounted from host:
-   - `.claude` directory for Claude AI configuration
+   - `.claude` directory for Claude AI configuration persistence
    - `.claude.json` for Claude AI state persistence
 
-### Initialization Process
+This architecture ensures AI assistants have consistent access to their
+configuration while working in an isolated container environment.
 
-The `.devcontainer/init.sh` script prepares the environment:
+## How Initialization Works
 
-1. Generates a custom Dockerfile with user-specific metadata
-2. Creates JSON overlay with mount configurations
-3. Merges overlay into existing `devcontainer.json`
-4. Creates mount points for both sandboxed and host-bound resources
-5. Handles JSONC (JSON with Comments) format used by VS Code
+The initialization provides cross-platform flexibility through a Node.js
+entry point that detects the OS and runs platform-specific scripts:
 
-Key functions in `init.sh`:
+### Execution Context
+
+- **When**: Triggered by VS Code via `initializeCommand` before container
+  creation
+- **Where**: Runs on the HOST machine (not in container)
+- **Entry**: `node .devcontainer/init.js` detects OS and runs appropriate
+  script
+- **Requirements**: Node.js (for init.js) and Docker access to inspect base
+  image metadata
+
+Key functions in platform scripts:
 
 - `gen_dockerfile`: Extends base Dockerfile with user metadata
   - Uses `containerUser` in metadata label (not `remoteUser`)
@@ -75,76 +83,115 @@ Key functions in `init.sh`:
 - `json_merge`: Merges JSON configurations with 2-space formatting
 - `rename`: Atomic file updates to avoid race conditions
 
-Mount point creation:
-
-- **Sandboxed directories**: `.docker-run-cache/$HOME`
-- **Host-bound directories**: `.claude` (created in both locations)
-- **Host-bound files**: `.claude.json` (touched in cache, initialized with `{}` on host if empty)
-
-## How init.sh Works
-
-The initialization script is the key to the DevContainer's flexibility.
-Here's a detailed breakdown of its operation:
-
-### Execution Context
-
-- **When**: Triggered by VS Code via `initializeCommand` before container
-  creation
-- **Where**: Runs on the HOST machine (not in container)
-- **Requirements**: Needs Docker access to inspect base image metadata
-
 ### Step-by-Step Process
 
-1. **Environment Setup**:
+#### Common Steps (All Platforms)
 
-   ```sh
-   cd "$(dirname "$0")/.."  # Navigate to project root
-   B=".devcontainer"        # DevContainer directory
-   C=".docker-run-cache"    # Cache directory for mounts
-   ```
+1. **OS Detection** (init.js):
 
-2. **Dockerfile Generation**:
-   - Reads `docker/Dockerfile` as the base
-   - Extracts metadata from base image using Docker inspect
-   - Appends user-specific configuration:
-     - Runs `/devcontainer-init.sh` to bypass entrypoint (without verbose output)
-     - Sets container user to match host user
-     - Adds devcontainer metadata label with `containerUser` field
+- Uses `process.platform` to detect Windows (`win32`) vs Unix
+- Launches platform-specific script with appropriate interpreter
 
-3. **JSON Configuration Merge**:
-   - **Step 1**: Sanitize existing `devcontainer.json` (remove comments)
-   - **Step 2**: Generate overlay with mount configurations
-   - **Step 3**: Merge overlay with existing config (overlay wins)
-   - **Step 4**: Write result with 2-space indentation
+2. **Environment Setup**:
 
-4. **Mount Point Preparation**:
-   - Creates isolated container home: `$C$HOME`
-   - Creates host-bound directories in both locations:
-     - `$PWD` (current directory)
-     - `$HOME/.claude` (AI config directory)
-   - Handles host-bound files:
-     - `$HOME/.claude.json`: Touched in cache, initialized with `{}` on host if empty
-     - Uses case pattern to handle JSON files specially
+- Navigate to project root
+- Set up directory variables:
+  - `B=".devcontainer"` - DevContainer directory
+  - `C=".docker-run-cache"` - Cache directory for mounts
+
+3. **Dockerfile Generation**:
+
+- Reads `docker/Dockerfile` as the base
+- Extracts metadata from base image using Docker inspect
+- Appends user-specific configuration:
+  - Runs `/devcontainer-init.sh` with username and home path
+  - Sets container user to match host user
+  - Adds devcontainer metadata label with `containerUser` field
+- **Platform differences**:
+  - Linux/macOS: Uses `$HOME` directly
+  - Windows: Translates paths (see Windows-specific section)
+
+4. **JSON Configuration Merge**:
+
+- **Step 1**: Sanitize existing `devcontainer.json` (remove comments)
+- **Step 2**: Generate overlay with mount configurations
+- **Step 3**: Merge overlay with existing config (overlay wins)
+- **Step 4**: Write result with 2-space indentation
+- **Platform differences**:
+  - Linux/macOS: Uses `${localEnv:HOME}` for paths
+  - Windows: Uses `${localEnv:USERPROFILE}` with path translation
+
+5. **Mount Point Preparation**:
+
+- Creates isolated container home: `${C}${HOME}` (or
+  `${C}${USERPROFILE}` on Windows)
+  - Note: `$HOME` includes leading slash, so becomes `.docker-run-cache/home/username`
+- Creates host-bound directories in both locations:
+  - `$PWD` (current directory)
+  - `$HOME/.claude` (AI config directory) or `$USERPROFILE/.claude` on
+    Windows
+- Handles host-bound files:
+  - `.claude.json`: Touched in cache, initialized with `{}` on host if
+    empty
+  - Uses case pattern to handle JSON files specially
+
+### Platform-Specific Details
+
+#### Windows (init.ps1)
+
+- **Username Sanitization**: Windows usernames may contain spaces or special
+  characters
+  - Replaces invalid characters with underscores
+  - Prepends underscore if starting with number
+  - Converts to lowercase for Linux compatibility
+- **Path Translation**: Converts Windows paths to container paths
+  - Detects Docker backend (WSL vs Docker Desktop)
+  - WSL format: `C:\Users\john` → `/mnt/c/users/john`
+  - Docker Desktop: `C:\Users\john` → `/c/Users/john`
+  - Applied to both workspace and home directories
+- **Environment Variables**:
+  - Uses `$env:USERNAME` and `$env:USERPROFILE`
+  - Translates to Linux equivalents for container
+
+#### Linux/macOS (init.sh)
+
+- **Direct Path Usage**: Native paths work without translation
+- **macOS Specifics**:
+  - Checks for Docker socket in multiple locations
+  - Requires Homebrew and jq installation
+- **Environment Variables**: Uses standard `$HOME` and `$USER`
 
 ### Key Design Decisions
 
+- **Cross-Platform Entry**: Node.js provides consistent OS detection
 - **Atomic Updates**: Uses temp files + rename to avoid partial writes
 - **Idempotent**: Can run multiple times safely
 - **Non-Destructive**: Only updates files if they differ
-- **Error Handling**: Uses `set -eu` for strict error checking
+- **Error Handling**: Strict error checking (bash `set -eu`, PowerShell
+  `$ErrorActionPreference`)
 
 ### File Flow Diagram
 
 ```text
-docker/Dockerfile → gen_dockerfile() → .devcontainer/Dockerfile
+                    init.js (Node.js)
                          ↓
-                    (adds user metadata)
+              ┌──────────┴──────────┐
+              │                     │
+         Windows               Unix/Linux/macOS
+              │                     │
+         init.ps1              init.sh
+              │                     │
+              └──────────┬──────────┘
+                         ↓
+docker/Dockerfile → generate_dockerfile → .devcontainer/Dockerfile
+                         ↓
+                  (adds user metadata)
 
-devcontainer.json → json_sanitize() → clean JSON
-                          ↓
-gen_json_overlay() → mount config → json_merge() → updated JSON
-                                          ↓
-                                    devcontainer.json
+devcontainer.json → sanitize → clean JSON
+                         ↓
+generate_overlay → mount config → merge → updated devcontainer.json
+                         ↓
+                 (platform-specific paths)
 ```
 
 ## Verification and Debugging
@@ -177,27 +224,27 @@ This project uses Git submodules. Proper initialization is critical:
 
 1. **Recursive Clone (Recommended)**:
 
-   ```bash
-   git clone --recursive https://github.com/amery/apptly-dev
-   cd apptly-dev/dev-env
-   ```
+  ```bash
+  git clone --recursive https://github.com/amery/apptly-dev
+  cd apptly-dev/dev-env
+  ```
 
 2. **If You Forgot --recursive**:
 
-   ```bash
-   # From within the cloned repository
-   git submodule update --init --recursive
-   ```
+  ```bash
+  # From within the cloned repository
+  git submodule update --init --recursive
+  ```
 
 3. **Updating Submodules**:
 
-   ```bash
-   # Update to latest commits
-   git submodule update --remote --merge
+  ```bash
+  # Update to latest commits
+  git submodule update --remote --merge
 
-   # Check submodule status
-   git submodule status
-   ```
+  # Check submodule status
+  git submodule status
+  ```
 
 **IMPORTANT**: Submodules MUST be initialized before creating the
 DevContainer. The container build will fail if submodules are missing.
@@ -208,30 +255,37 @@ DevContainer. The container build will fail if submodules are missing.
 2. `initializeCommand` in devcontainer.json runs init.sh automatically
 3. VS Code will build and start the DevContainer
 
-### Container Lifecycle
-
-- Container creation triggers init.sh via `initializeCommand`
-- init.sh runs on the HOST (not in container) with Docker access
-- Dockerfile is generated with current user metadata
-- JSON overlay is merged with existing devcontainer.json
-- Mount points created in .docker-run-cache and host as needed
-- Claude configuration files are ensured to exist
-
-### Persistence
-
-- Container-specific configurations persist in `.docker-run-cache/${HOME}`
-- Claude configurations are shared via bind mounts
-- Workspace remains mounted at the same path as the host
-
 ## Code Quality Standards
 
 ### Markdown Files
 
 - All markdown files must be tested against markdownlint
-- Use 2-space indentation (per .editorconfig)
-- Lines should be shorter than 78 characters
+- Lists under numbered items require blank lines:
+  - Add blank line before starting a bullet list under a numbered item
+  - Add blank line after the numbered item before the sub-list
+- Use consistent indentation for nested lists:
+  - Sub-items under bullets: indent 2 spaces
+  - Third-level items: indent 4 spaces
+- Code blocks within lists should be indented to align with list text
+- Lines should be shorter than 78 characters where practical
 - Files must end with a single newline
 - Fix any markdownlint violations before committing
+- Test with `pnpx markdownlint-cli <filename>`
+
+#### Markdown List Format Example
+
+```markdown
+1. **First level numbered item**
+
+- Bullet list needs blank line before it
+- Another bullet at same level
+
+2. **Second numbered item**
+
+- Sub-list with blank line separation
+  - Nested item (2 space indent)
+  - Another nested item
+```
 
 ### VS Code Diagnostics
 
@@ -248,30 +302,7 @@ Key rules from `.editorconfig`:
 - **JSON/YAML**: 2-space indentation
 - **Shell scripts**: Tab indentation (size 8)
 
-## Integration with AI Tools
-
-The devcontainer is configured for seamless AI assistant integration:
-
-- `.claude` directory is bind-mounted for configuration persistence
-- `.claude.json` is bind-mounted for state persistence
-- Workspace path remains consistent between host and container
-- Environment variables properly set (GOPATH, WS, CURDIR)
-
-This architecture ensures AI assistants have consistent access to their
-configuration while working in an isolated container environment.
-
-## Relationship with docker-builder
-
-This project demonstrates how to extend docker-builder for specific use cases:
-
-1. **Base Image Usage**: Extends `quay.io/amery/docker-apptly-builder:latest`
-   from docker-builder
-2. **Run Script Integration**: Symlinks to docker-builder's `run.sh` for
-   consistent container execution
-3. **DevContainer Extension**: Adds VS Code DevContainer configuration on top
-   of docker-builder's base images
-
-When working with both projects:
+When working with docker-builder:
 
 - **docker-builder changes**: Affect all environments using its base images
 - **dev-env changes**: Only affect this specific DevContainer environment
