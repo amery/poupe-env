@@ -158,16 +158,6 @@ gen_json_overlay() {
 	local ws='${localWorkspaceFolder}'
 	local home='${localEnv:HOME}'
 
-	# Platform-specific adjustments
-	case "$OS_TYPE" in
-		macos)
-			# macOS-specific mounts or settings could go here
-			;;
-		linux)
-			# Linux-specific mounts or settings could go here
-			;;
-	esac
-
 	cat <<EOT
 {
 	"containerEnv": {
@@ -205,9 +195,7 @@ json_merge() {
 
 # devcontainer.json must exist in version control
 F="$B/devcontainer.json"
-if [ ! -f "$F" ]; then
-	die "devcontainer.json not found. This file should come from version control."
-fi
+[ -s "$F" ] || die "devcontainer.json not found or empty."
 
 T0="$F.0.$$"
 T1="$F.1.$$"
@@ -254,12 +242,4 @@ for x in \
 	esac
 done
 
-# Platform-specific success message
-case "$OS_TYPE" in
-	macos)
-		echo "Devcontainer initialization completed successfully on macOS"
-		;;
-	linux)
-		echo "Devcontainer initialization completed successfully on Linux"
-		;;
-esac
+echo "Devcontainer initialization completed successfully"
