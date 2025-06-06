@@ -24,7 +24,9 @@ $C = ".docker-run-cache"
 if (-not $env:USERNAME) {
     Exit-With-Error "no USERNAME environment variable"
 }
-$USER = $env:USERNAME
+# Sanitize username for Linux compatibility
+# Replace spaces and invalid characters with underscores, convert to lowercase
+$USER = $env:USERNAME -replace '[^a-zA-Z0-9._-]', '_' -replace '^[0-9]', '_$0' | ForEach-Object { $_.ToLower() }
 
 if (-not $env:USERPROFILE) {
     Exit-With-Error "no USERPROFILE"
@@ -75,13 +77,15 @@ function Get-UpdatedMetadata {
 function Generate-Dockerfile {
     $baseContent = Get-Content $DOCKERFILE -Raw
     $metadata = Get-UpdatedMetadata
+    # Container always uses Linux-style home path
+    $containerHome = "/home/$USER"
 
     return @"
 $baseContent
 
 # bypassed entrypoint
 #
-RUN /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
+RUN /devcontainer-init.sh "$USER" "$containerHome" && rm -f /devcontainer-init.sh
 
 # run as user
 #
@@ -100,6 +104,9 @@ Rename-IfDifferent $T $F
 # Generate JSON overlay
 function Generate-JsonOverlay {
     # Note: VSCode variables will be resolved at runtime
+    # Container always uses Linux-style paths
+    $containerHome = "/home/$USER"
+    
     $overlay = @{
         containerEnv = @{
             GOPATH = '${localWorkspaceFolder}'
@@ -111,17 +118,17 @@ function Generate-JsonOverlay {
         mounts = @(
             @{
                 source = '${localWorkspaceFolder}/.docker-run-cache/${localEnv:USERPROFILE}'
-                target = '${localEnv:HOME}'
+                target = $containerHome
                 type = 'bind'
             },
             @{
                 source = '${localEnv:USERPROFILE}/.claude'
-                target = '${localEnv:HOME}/.claude'
+                target = "$containerHome/.claude"
                 type = 'bind'
             },
             @{
                 source = '${localEnv:USERPROFILE}/.claude.json'
-                target = '${localEnv:HOME}/.claude.json'
+                target = "$containerHome/.claude.json"
                 type = 'bind'
             }
         )
