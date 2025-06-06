@@ -73,12 +73,39 @@ function Get-UpdatedMetadata {
     return ($jsonObj | ConvertTo-Json -Compress)
 }
 
+# Function to translate Windows path to container path
+function Convert-ToContainerPath {
+    param([string]$WindowsPath)
+    
+    # Check if Docker is using WSL backend
+    $dockerInfo = & docker version --format json 2>$null | ConvertFrom-Json
+    $isWSL = $false
+    
+    if ($dockerInfo -and $dockerInfo.Server) {
+        # Check for WSL in Docker context or OS info
+        if ($dockerInfo.Server.Os -match 'linux' -and 
+            ($env:WSL_DISTRO_NAME -or (& docker context ls 2>$null | Select-String 'wsl'))) {
+            $isWSL = $true
+        }
+    }
+    
+    # Convert path based on Docker backend
+    if ($isWSL) {
+        # WSL format: /mnt/c/Users/...
+        return $WindowsPath -replace '^([A-Z]):\\', '/mnt/$1/' -replace '\\', '/' | 
+               ForEach-Object { $_.ToLower() }
+    } else {
+        # Docker Desktop format: /c/Users/...
+        return $WindowsPath -replace '^([A-Z]):\\', '/$1/' -replace '\\', '/'
+    }
+}
+
 # Generate Dockerfile content
 function Generate-Dockerfile {
     $baseContent = Get-Content $DOCKERFILE -Raw
     $metadata = Get-UpdatedMetadata
-    # Container always uses Linux-style home path
-    $containerHome = "/home/$USER"
+    # Translate Windows home path to container path
+    $containerHome = Convert-ToContainerPath $env:USERPROFILE
 
     return @"
 $baseContent
@@ -104,17 +131,20 @@ Rename-IfDifferent $T $F
 # Generate JSON overlay
 function Generate-JsonOverlay {
     # Note: VSCode variables will be resolved at runtime
-    # Container always uses Linux-style paths
-    $containerHome = "/home/$USER"
+    # Translate Windows paths to container paths
+    
+    # Translate paths
+    $containerHome = Convert-ToContainerPath $env:USERPROFILE
+    $workspaceFolder = Convert-ToContainerPath $PWD.Path
     
     $overlay = @{
         containerEnv = @{
-            GOPATH = '${localWorkspaceFolder}'
-            WS = '${localWorkspaceFolder}'
-            CURDIR = '${localWorkspaceFolder}'
+            GOPATH = $workspaceFolder
+            WS = $workspaceFolder
+            CURDIR = $workspaceFolder
         }
-        workspaceMount = 'source=${localWorkspaceFolder},target=${localWorkspaceFolder},type=bind,consistency=cached'
-        workspaceFolder = '${localWorkspaceFolder}'
+        workspaceMount = "source=${localWorkspaceFolder},target=$workspaceFolder,type=bind,consistency=cached"
+        workspaceFolder = $workspaceFolder
         mounts = @(
             @{
                 source = '${localWorkspaceFolder}/.docker-run-cache/${localEnv:USERPROFILE}'
