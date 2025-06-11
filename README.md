@@ -14,6 +14,8 @@ development environments with intelligent host integration.
 - **Automatic Setup**: Self-configuring initialization script
 - **Cross-Platform**: Works on Windows, Linux, and macOS with automatic
   path translation
+- **Development-Optimized Security**: Runs with elevated privileges for
+  debugging and advanced development scenarios (development use only)
 
 ## Base Image
 

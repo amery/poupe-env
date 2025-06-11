@@ -22,6 +22,20 @@ This project uses VS Code DevContainers with a custom sandboxed home
 directory approach to provide isolated development environments while
 preserving access to essential host resources.
 
+### Security Configuration
+
+The DevContainer runs with elevated privileges to enable advanced development
+scenarios:
+
+- **`NET_ADMIN`**: Network administration for debugging network configurations
+- **`SYS_PTRACE`**: Process tracing for debugging tools (gdb, strace)
+- **AppArmor Unconfined**: Disabled AppArmor restrictions
+- **Seccomp Unconfined**: Unrestricted system calls
+
+**WARNING**: These settings significantly reduce container security. This
+configuration is intended ONLY for trusted development environments, not for
+production use.
+
 ### Foundation: docker-builder
 
 This project builds upon [amery/docker-builder](https://github.com/amery/docker-builder),
