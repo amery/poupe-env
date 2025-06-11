@@ -88,52 +88,47 @@ Key functions in platform scripts:
 #### Common Steps (All Platforms)
 
 1. **OS Detection** (init.js):
-
-- Uses `process.platform` to detect Windows (`win32`) vs Unix
-- Launches platform-specific script with appropriate interpreter
+   - Uses `process.platform` to detect Windows (`win32`) vs Unix
+   - Launches platform-specific script with appropriate interpreter
 
 2. **Environment Setup**:
-
-- Navigate to project root
-- Set up directory variables:
-  - `B=".devcontainer"` - DevContainer directory
-  - `C=".docker-run-cache"` - Cache directory for mounts
+   - Navigate to project root
+   - Set up directory variables:
+     - `B=".devcontainer"` - DevContainer directory
+     - `C=".docker-run-cache"` - Cache directory for mounts
 
 3. **Dockerfile Generation**:
-
-- Reads `docker/Dockerfile` as the base
-- Extracts metadata from base image using Docker inspect
-- Appends user-specific configuration:
-  - Runs `/devcontainer-init.sh` with username and home path
-  - Sets container user to match host user
-  - Adds devcontainer metadata label with `containerUser` field
-- **Platform differences**:
-  - Linux/macOS: Uses `$HOME` directly
-  - Windows: Translates paths (see Windows-specific section)
+   - Reads `docker/Dockerfile` as the base
+   - Extracts metadata from base image using Docker inspect
+   - Appends user-specific configuration:
+     - Runs `/devcontainer-init.sh` with username and home path
+     - Sets container user to match host user
+     - Adds devcontainer metadata label with `containerUser` field
+   - **Platform differences**:
+     - Linux/macOS: Uses `$HOME` directly
+     - Windows: Translates paths (see Windows-specific section)
 
 4. **JSON Configuration Merge**:
-
-- **Step 1**: Sanitize existing `devcontainer.json` (remove comments)
-- **Step 2**: Generate overlay with mount configurations
-- **Step 3**: Merge overlay with existing config (overlay wins)
-- **Step 4**: Write result with 2-space indentation
-- **Platform differences**:
-  - Linux/macOS: Uses `${localEnv:HOME}` for paths
-  - Windows: Uses `${localEnv:USERPROFILE}` with path translation
+   - **Step 1**: Sanitize existing `devcontainer.json` (remove comments)
+   - **Step 2**: Generate overlay with mount configurations
+   - **Step 3**: Merge overlay with existing config (overlay wins)
+   - **Step 4**: Write result with 2-space indentation
+   - **Platform differences**:
+     - Linux/macOS: Uses `${localEnv:HOME}` for paths
+     - Windows: Uses `${localEnv:USERPROFILE}` with path translation
 
 5. **Mount Point Preparation**:
-
-- Creates isolated container home: `${C}${HOME}` (or
-  `${C}${USERPROFILE}` on Windows)
-  - Note: `$HOME` includes leading slash, so becomes `.docker-run-cache/home/username`
-- Creates host-bound directories in both locations:
-  - `$PWD` (current directory)
-  - `$HOME/.claude` (AI config directory) or `$USERPROFILE/.claude` on
-    Windows
-- Handles host-bound files:
-  - `.claude.json`: Touched in cache, initialized with `{}` on host if
-    empty
-  - Uses case pattern to handle JSON files specially
+   - Creates isolated container home: `${C}${HOME}` (or
+     `${C}${USERPROFILE}` on Windows)
+     - Note: `$HOME` includes leading slash, so becomes `.docker-run-cache/home/username`
+   - Creates host-bound directories in both locations:
+     - `$PWD` (current directory)
+     - `$HOME/.claude` (AI config directory) or `$USERPROFILE/.claude` on
+       Windows
+   - Handles host-bound files:
+     - `.claude.json`: Touched in cache, initialized with `{}` on host if
+       empty
+   - Uses case pattern to handle JSON files specially
 
 ### Platform-Specific Details
 
@@ -224,27 +219,27 @@ This project uses Git submodules. Proper initialization is critical:
 
 1. **Recursive Clone (Recommended)**:
 
-  ```bash
-  git clone --recursive https://github.com/amery/apptly-dev
-  cd apptly-dev/dev-env
-  ```
+   ```bash
+   git clone --recursive https://github.com/amery/apptly-dev
+   cd apptly-dev/dev-env
+   ```
 
 2. **If You Forgot --recursive**:
 
-  ```bash
-  # From within the cloned repository
-  git submodule update --init --recursive
-  ```
+   ```bash
+   # From within the cloned repository
+   git submodule update --init --recursive
+   ```
 
 3. **Updating Submodules**:
 
-  ```bash
-  # Update to latest commits
-  git submodule update --remote --merge
+   ```bash
+   # Update to latest commits
+   git submodule update --remote --merge
 
-  # Check submodule status
-  git submodule status
-  ```
+   # Check submodule status
+   git submodule status
+   ```
 
 **IMPORTANT**: Submodules MUST be initialized before creating the
 DevContainer. The container build will fail if submodules are missing.

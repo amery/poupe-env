@@ -73,6 +73,7 @@ details on available base images and the build infrastructure, see the
 
 The container will automatically initialize on first run. The initialization
 process:
+
 - Detects your operating system (Windows, Linux, or macOS)
 - Runs the appropriate script (`init.ps1` for Windows, `init.sh` for
   Unix-like systems)
