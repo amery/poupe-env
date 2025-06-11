@@ -4,6 +4,12 @@
     "dockerfile": "./Dockerfile"
   },
   "initializeCommand": "node .devcontainer/init.js",
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=SYS_PTRACE",
+    "--security-opt=apparmor:unconfined",
+    "--security-opt=seccomp:unconfined"
+  ],
   "containerEnv": {
     "GOPATH": "${localWorkspaceFolder}",
     "WS": "${localWorkspaceFolder}",
