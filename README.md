@@ -81,7 +81,7 @@ process:
   Unix-like systems)
 - Creates necessary directories and configures mounts for Claude AI
   integration
-- Handles path translation on Windows (e.g., `C:\Users\john` →
+- Handles path translation on Windows (e.g. `C:\Users\john` →
   `/c/Users/john`)
 - Generates a custom Dockerfile with user-specific metadata
 
@@ -109,10 +109,42 @@ run.sh              # Symlink to docker/run.sh (workspace root marker)
 go.work             # Go workspace configuration
 ```
 
+## Two Ways to Work
+
+This environment supports two complementary workflows:
+
+### 1. VS Code DevContainer (Interactive GUI)
+
+Open the workspace in VS Code and use the "Reopen in Container"
+feature. The container runs continuously with VS Code Server, providing
+integrated terminal, debugging, and extensions.
+
+- **Best for**: Interactive development, debugging, IDE features
+- **Lifecycle**: Managed by VS Code (start, stop, rebuild)
+- **Terminal**: Opens directly inside container
+- **User**: Matches host UID/GID via entrypoint
+
+### 2. Command-Line via `x` (CLI Trampoline)
+
+Use the `x` helper from the host to execute commands in fresh
+containers. Each invocation creates a new container via
+docker-builder-run.
+
+- **Best for**: Host-side builds, CI/CD, quick commands, nested
+  workspaces
+- **Lifecycle**: Per-command (container created and destroyed)
+- **Terminal**: Executes on host, trampolines to container
+- **User**: Same UID/GID matching via entrypoint
+
+Both workflows use the same base image and entrypoint, ensuring
+consistent behaviour. Scripts never include `x` in their commands; this
+makes them portable between DevContainer (direct execution) and host
+(`x ./script.sh`).
+
 ## The `x` Helper
 
 The `x` script in `bin/` provides intelligent workspace detection and
-command execution:
+command execution via the docker-builder-run trampoline.
 
 ### Usage
 
@@ -120,59 +152,104 @@ command execution:
 # Find workspace root
 x --root
 
-# Execute command in container (if run.sh exists)
+# Execute command in container (finds and calls run.sh)
 x make build
+x go test ./...
+x pwd  # Returns actual directory, not /
 
-# Pass through command if no run.sh found
+# Works from any subdirectory
+cd src/myproject
+x make  # Still finds workspace root run.sh
+
+# Pass through if no run.sh found
 x echo "hello"
 ```
 
-### How it Works
+### How It Works
 
 1. **Workspace Detection**: Searches for `run.sh` by checking:
    - `.repo` directory (for repo tool workspaces)
-   - `.git` repository root
-   - Parent directories up to root
+   - Git workspace root: tries superproject first (`git rev-parse
+     --show-superproject-working-tree`), falls back to repository root
+     (`git rev-parse --show-toplevel`)
+   - Parent directories up to filesystem root (brute force)
 
-2. **Container Execution**: If `run.sh` is found, trampolines commands
-   through it for consistent container-based execution
+2. **Trampoline Execution**: When `run.sh` is found:
+   - `x` calls `run.sh` with your command
+   - `run.sh` invokes docker-builder-run
+   - docker-builder-run creates fresh container
+   - Entrypoint sets up user and navigates to CURDIR
+   - Your command executes in correct directory
 
-3. **Fallback**: If no `run.sh` is found, executes commands directly
+3. **Fallback**: If no `run.sh` is found, executes command directly on
+   host
+
+### Key Features
+
+- **Script Portability**: Write scripts without `x`; they work in
+  DevContainer and via `x ./script.sh` from host
+- **Directory Preservation**: Entrypoint sets CURDIR so `x pwd` returns
+  actual directory
+- **Submodule Aware**: Finds correct workspace in nested Git
+  repositories
+- **Consistent Environment**: Same image and entrypoint as DevContainer
 
 ## Usage Examples
+
+### Combined Workflow
+
+```bash
+# Start VS Code DevContainer for interactive work
+code .
+# Click "Reopen in Container" when prompted
+
+# In VS Code terminal (inside container):
+./build.sh      # Runs directly in container
+make test       # Runs in container environment
+
+# From host terminal, use `x`:
+x ./build.sh    # Creates fresh container, runs script
+x make test     # Same behaviour as in DevContainer
+
+# Both execute identically: never put 'x' in scripts
+```
 
 ### Working with Go Projects
 
 ```bash
-# From any subdirectory, use x to run commands in container
+# From any subdirectory, use `x` to run commands in the container
 cd src/myapp
 x go build ./...
 x go test -v
 
 # Check workspace root
 x --root
+
+# Directory preserved in container
+x pwd           # Returns /path/to/src/myapp, not /
 ```
 
-### Development Workflow
+### CI/CD Integration
 
 ```bash
-# Open in VS Code with DevContainer
-code .
+# Invoke scripts via `x` from host (never include `x` in scripts)
+x ./build.sh
+x ./test.sh
 
-# After container starts, your tools are available
-go version      # Uses container's Go installation
-make build      # Runs in consistent environment
+# Or call `x` with commands directly
+x make clean
+x make build
+x make test
 
-# Claude AI config persists between sessions
-claude --help   # If Claude CLI is installed
+# Scripts remain portable: work in both DevContainer and via `x`
 ```
 
 ## Environment Variables
 
 The container sets these environment variables:
 
-- `WS`: Workspace folder path
-- `CURDIR`: Current directory (same as workspace)
+- `WS`: Workspace root path
+- `CURDIR`: Current working directory at invocation
 - `GOPATH`: Go path (set to workspace for Go projects)
 
 ## Troubleshooting
