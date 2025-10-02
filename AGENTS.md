@@ -4,7 +4,7 @@ Technical implementation details for AI agents and developers working with
 this codebase. For general setup instructions, see [README.md](./README.md).
 
 **IMPORTANT**: When making changes to the DevContainer setup, initialization
-process, or mount configuration, you MUST update both AGENT.md and README.md
+process, or mount configuration, you MUST update both AGENTS.md and README.md
 to reflect the changes before committing. This ensures documentation stays
 accurate and synchronized.
 
@@ -45,7 +45,7 @@ which provides:
 - **Run Script**: The `docker/run.sh` wrapper for container execution
 - **Build System**: Automated Docker image building and management
 
-See the [docker-builder documentation](https://github.com/amery/docker-builder/blob/master/AGENT.md)
+See the [docker-builder documentation](https://github.com/amery/docker-builder/blob/master/AGENTS.md)
 for details on the underlying infrastructure.
 
 ### Sandboxed Home Directory
@@ -321,4 +321,4 @@ When working with docker-builder:
 For docker-builder implementation details, see the
 [docker-builder AGENT documentation][docker-builder-agent].
 
-[docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENT.md
+[docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENTS.md

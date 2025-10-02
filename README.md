@@ -62,7 +62,7 @@ details on available base images and the build infrastructure, see the
    ```
 
    For detailed submodule management instructions, see
-   [AGENT.md](./AGENT.md#submodule-management).
+   [AGENTS.md](./AGENTS.md#submodule-management).
 
 2. Open in VS Code:
 
@@ -227,7 +227,7 @@ When docker-builder is updated:
 
 ## Documentation
 
-- [AGENT.md](./AGENT.md) - Technical implementation details for AI agents
+- [AGENTS.md](./AGENTS.md) - Technical implementation details for AI agents
   and developers
 - [LICENCE.txt](./LICENCE.txt) - Project license information
 - [docker-builder](https://github.com/amery/docker-builder) - Base
