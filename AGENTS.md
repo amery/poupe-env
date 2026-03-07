@@ -4,7 +4,7 @@ Technical implementation details for AI agents and developers working with
 this codebase. For general setup instructions, see [README.md](./README.md).
 
 **IMPORTANT**: When making changes to the DevContainer setup, initialization
-process, or mount configuration, you MUST update both AGENT.md and README.md
+process, or mount configuration, you MUST update both AGENTS.md and README.md
 to reflect the changes before committing. This ensures documentation stays
 accurate and synchronized.
 
@@ -15,12 +15,47 @@ accurate and synchronized.
 - **Init Script**: `.devcontainer/init.sh` (runs on host before container)
 - **Key Files**: `devcontainer.json`, `docker/Dockerfile`, `run.sh`
 - **Base Image**: `amery/docker-builder` (Ubuntu + VS Code + Go + Node.js)
+- **Execution Modes**: DevContainer (long-lived) and `x` (per-command)
+- **Trampoline**: `x` → `run.sh` → docker-builder-run → container
+
+## Dual Execution Architecture
+
+This project supports two complementary execution modes, both using the
+same base image and entrypoint for consistent behaviour:
+
+### DevContainer Mode (Long-Lived)
+
+VS Code manages a persistent container with integrated terminal and
+debugging:
+
+- **Lifecycle**: Started by VS Code, runs until stopped
+- **Entry**: VS Code executes container directly
+- **Terminal**: Opens shells inside running container
+- **User Setup**: Entrypoint creates user matching host UID/GID
+- **Use Case**: Interactive development with IDE features
+
+### CLI Mode via `x` (Per-Command)
+
+The `x` helper trampolines commands through docker-builder-run:
+
+- **Lifecycle**: Fresh container per command invocation
+- **Entry**: `x` → `run.sh` → docker-builder-run → container
+- **Terminal**: Command executes, container terminates
+- **User Setup**: Same entrypoint, same UID/GID matching
+- **Use Case**: Host-side builds, CI/CD, nested workspaces
+- **Script Portability**: Scripts never include `x`; use `x ./script.sh`
+  from host
+
+Both modes converge at the container entrypoint, which handles user
+creation, environment setup, and directory navigation (CURDIR). This
+ensures `./script.sh` in DevContainer terminal behaves identically to
+`x ./script.sh` from host.
 
 ## DevContainer Architecture
 
-This project uses VS Code DevContainers with a custom sandboxed home
-directory approach to provide isolated development environments while
-preserving access to essential host resources.
+VS Code DevContainers with custom sandboxed home directory approach
+provide isolated development environments whilst preserving access to
+essential host resources.
 
 ### Security Configuration
 
@@ -38,14 +73,15 @@ production use.
 
 ### Foundation: docker-builder
 
-This project builds upon [amery/docker-builder](https://github.com/amery/docker-builder),
-which provides:
+This project builds upon
+[amery/docker-builder](https://github.com/amery/docker-builder), which
+provides:
 
 - **Base Images**: The `docker-apptly-builder` image used as foundation
 - **Run Script**: The `docker/run.sh` wrapper for container execution
 - **Build System**: Automated Docker image building and management
 
-See the [docker-builder documentation](https://github.com/amery/docker-builder/blob/master/AGENT.md)
+See the [docker-builder documentation](https://github.com/amery/docker-builder/blob/master/AGENTS.md)
 for details on the underlying infrastructure.
 
 ### Sandboxed Home Directory
@@ -78,7 +114,7 @@ entry point that detects the OS and runs platform-specific scripts:
 
 - **When**: Triggered by VS Code via `initializeCommand` before container
   creation
-- **Where**: Runs on the HOST machine (not in container)
+- **Where**: Runs on the host machine (not in container)
 - **Entry**: `node .devcontainer/init.js` detects OS and runs appropriate
   script
 - **Requirements**: Node.js (for init.js) and Docker access to inspect base
@@ -133,8 +169,8 @@ Key functions in platform scripts:
 
 5. **Mount Point Preparation**:
    - Creates isolated container home: `${C}${HOME}` (or
-     `${C}${USERPROFILE}` on Windows)
-     - Note: `$HOME` includes leading slash, so becomes `.docker-run-cache/home/username`
+     `${C}${USERPROFILE}` on Windows); `$HOME` includes leading slash, so
+     becomes `.docker-run-cache/home/username`
    - Creates host-bound directories in both locations:
      - `$PWD` (current directory)
      - `$HOME/.claude` (AI config directory) or `$USERPROFILE/.claude` on
@@ -176,7 +212,7 @@ Key functions in platform scripts:
 - **Atomic Updates**: Uses temp files + rename to avoid partial writes
 - **Idempotent**: Can run multiple times safely
 - **Non-Destructive**: Only updates files if they differ
-- **Error Handling**: Strict error checking (bash `set -eu`, PowerShell
+- **Error Handling**: Strict error checking (Bash `set -eu`, PowerShell
   `$ErrorActionPreference`)
 
 ### File Flow Diagram
@@ -203,6 +239,63 @@ generate_overlay → mount config → merge → updated devcontainer.json
                  (platform-specific paths)
 ```
 
+## The `x` Command Architecture
+
+The `x` helper provides workspace-aware command execution via the
+docker-builder-run trampoline pattern.
+
+### Workspace Detection Algorithm
+
+Located in `bin/x`, the script searches for `run.sh`:
+
+1. **Repo Tool Workspaces**: Searches for `.repo` directory via
+   brute-force parent directory traversal
+2. **Git Workspace**: If no `.repo` found, tries `git rev-parse
+   --show-superproject-working-tree` for submodules, falling back to `git
+   rev-parse --show-toplevel` for regular repositories
+3. **Brute Force**: If no VCS found, searches parent directories for
+   executable `run.sh`
+
+Once a workspace root is found, checks for executable `run.sh` at that
+location. If not found, searches parent directories iteratively.
+
+### Trampoline Pattern
+
+When `run.sh` is found, `x` executes the trampoline sequence:
+
+```text
+x command args
+    ↓
+run.sh command args
+    ↓
+docker-builder-run command args
+    ↓
+docker run ... entrypoint.sh
+    ↓
+command args (in container at CURDIR)
+```
+
+### Entrypoint Behaviour
+
+The container entrypoint (from docker-builder base image) ensures
+consistent behaviour across both DevContainer and CLI modes:
+
+- **User Matching**: Creates container user with host UID/GID
+- **Environment Setup**: Sets `WS`, `CURDIR`, and `PATH`
+- **Directory Navigation**: Changes to `CURDIR` before execution
+- **Command Execution**: Runs command as container user
+
+See [docker-builder documentation][docker-builder-agent] for entrypoint
+implementation details.
+
+### Script Portability
+
+Scripts must never include `x` in their commands. This ensures:
+
+- **DevContainer**: `./script.sh` runs directly
+- **Host**: `x ./script.sh` trampolines to container
+- **Portability**: Same script works in both environments
+
 ## Verification and Debugging
 
 ### Mount Verification
@@ -219,11 +312,28 @@ findmnt -t bind | grep -E "(${USER}|claude)"
 
 Expected output should show bind mounts, not ext4 filesystem mounts.
 
+### Environment Verification
+
+To verify environment setup:
+
+```bash
+# Check environment variables
+echo $WS
+echo $CURDIR
+echo $PATH
+
+# Verify CURDIR navigation works
+x pwd  # Should match current directory, not /
+```
+
 ### Common Issues
 
-1. **Mount not appearing**: Rebuild container after configuration changes
-2. **Permission errors**: Ensure directories exist before container creation
-3. **JSONC parsing**: The `json_sanitize` function handles VS Code's format
+1. **Mount not appearing**: Rebuild container after configuration
+   changes
+2. **Permission errors**: Ensure directories exist before container
+   creation
+3. **JSONC parsing**: The `json_sanitize` function handles VS Code's
+   format
 
 ## Development Workflow
 
@@ -321,4 +431,4 @@ When working with docker-builder:
 For docker-builder implementation details, see the
 [docker-builder AGENT documentation][docker-builder-agent].
 
-[docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENT.md
+[docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENTS.md
