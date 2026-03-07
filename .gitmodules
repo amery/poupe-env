@@ -1,12 +1,16 @@
 [submodule "src/github.com/poupe-ui/eslint-config"]
 	path = src/github.com/poupe-ui/eslint-config
 	url = https://github.com/poupe-ui/eslint-config
+	branch = main
 [submodule "src/github.com/poupe-ui/poupe"]
 	path = src/github.com/poupe-ui/poupe
 	url = https://github.com/poupe-ui/poupe
+	branch = main
 [submodule "src/github.com/poupe-ui/poupe-website"]
 	path = src/github.com/poupe-ui/poupe-website
 	url = https://github.com/poupe-ui/poupe-website
+	branch = main
 [submodule "src/github.com/poupe-ui/material-color-utilities"]
 	path = src/github.com/poupe-ui/material-color-utilities
 	url = https://github.com/poupe-ui/material-color-utilities
+	branch = main

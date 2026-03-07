@@ -5,14 +5,6 @@
 			"path": "."
 		},
 		{
-			"name": "3dprintedawe.co.uk",
-			"path": "src/github.com/poupe-ui/3dprintedawe-website"
-		},
-		{
-			"name": "apptly.co",
-			"path": "src/github.com/poupe-ui/apptly-website"
-		},
-		{
 			"name": "poupe.dev",
 			"path": "src/github.com/poupe-ui/poupe-website"
 		},
@@ -64,7 +56,6 @@
 		// cSpell
 		"cSpell.language": "en-GB",
 		"cSpell.words": [
-			"3dprintedawe",
 			"apptly",
 			"ARGB",
 			"bradlc",
