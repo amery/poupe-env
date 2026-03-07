@@ -17,6 +17,10 @@
 			"path": "src/github.com/poupe-ui/eslint-config"
 		},
 		{
+			"name": "@poupe/eslint-plugin-tailwindcss",
+			"path": "src/github.com/poupe-ui/eslint-plugin-tailwindcss"
+		},
+		{
 			"name": "@poupe/nuxt",
 			"path": "src/github.com/poupe-ui/poupe/packages/@poupe-nuxt"
 		},

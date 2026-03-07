@@ -14,3 +14,7 @@
 	path = src/github.com/poupe-ui/material-color-utilities
 	url = https://github.com/poupe-ui/material-color-utilities
 	branch = main
+[submodule "src/github.com/poupe-ui/eslint-plugin-tailwindcss"]
+	path = src/github.com/poupe-ui/eslint-plugin-tailwindcss
+	url = https://github.com/poupe-ui/eslint-plugin-tailwindcss
+	branch = main
