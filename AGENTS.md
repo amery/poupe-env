@@ -81,7 +81,7 @@ provides:
 - **Run Script**: The `docker/run.sh` wrapper for container execution
 - **Build System**: Automated Docker image building and management
 
-See the [docker-builder documentation](https://github.com/amery/docker-builder/blob/master/AGENTS.md)
+See the [docker-builder documentation][docker-builder-agent]
 for details on the underlying infrastructure.
 
 ### Sandboxed Home Directory
@@ -344,8 +344,8 @@ This project uses Git submodules. Proper initialization is critical:
 1. **Recursive Clone (Recommended)**:
 
    ```bash
-   git clone --recursive https://github.com/amery/apptly-dev
-   cd apptly-dev/dev-env
+   git clone --recursive <repository-url>
+   cd dev-env
    ```
 
 2. **If You Forgot --recursive**:

@@ -21,7 +21,7 @@ development environments with intelligent host integration.
 
 The development container is built on
 [amery/docker-builder](https://github.com/amery/docker-builder), extending
-the `docker-ubuntu-vsc-base-builder` image with:
+the `docker-apptly-builder` image with:
 
 - **Go**: Full Go development environment
 - **Node.js**: JavaScript/TypeScript runtime and tooling
