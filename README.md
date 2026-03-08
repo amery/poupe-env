@@ -6,7 +6,7 @@ periodically merged to keep the base tooling current.
 
 ## Submodules
 
-Seven poupe-ui repositories are bundled as Git submodules under
+Five poupe-ui repositories are bundled as Git submodules under
 `src/github.com/poupe-ui/`:
 
 - [poupe](https://github.com/poupe-ui/poupe) — core UI library monorepo
@@ -17,9 +17,6 @@ Seven poupe-ui repositories are bundled as Git submodules under
 - [material-color-utilities](https://github.com/poupe-ui/material-color-utilities)
   — Material Design colour utilities
 - [poupe-website](https://github.com/poupe-ui/poupe-website) — poupe.dev
-- [apptly-website](https://github.com/poupe-ui/apptly-website) — apptly.co
-- [3dprintedawe-website](https://github.com/poupe-ui/3dprintedawe-website)
-  — 3dprintedawe.co.uk
 
 Open `poupe-ui.code-workspace` in VS Code for a multi-root layout that
 exposes individual packages as top-level folders, with shared settings
@@ -126,12 +123,12 @@ process:
 ├── init.sh           # Linux/macOS initialization script
 └── init.ps1          # Windows PowerShell init script
 
-.docker-run-cache/   # Container runtime storage (git-ignored)
-└── ${HOME}/        # Sandboxed home directory
+.docker-run-cache/    # Container runtime storage (git-ignored)
+└── ${HOME}/          # Sandboxed home directory
 
-docker/              # Base container definitions
-├── Dockerfile       # Base image configuration
-└── run.sh          # Container runtime script
+docker/               # Base container definitions
+├── Dockerfile        # Base image configuration
+└── run.sh            # Container runtime script
 
 bin/                 # Helper scripts
 └── x               # Workspace helper (container access)
@@ -141,13 +138,11 @@ src/github.com/poupe-ui/  # Git submodules
 ├── eslint-config/
 ├── eslint-plugin-tailwindcss/
 ├── material-color-utilities/
-├── poupe-website/
-├── apptly-website/
-└── 3dprintedawe-website/
+└── poupe-website/
 
 poupe-ui.code-workspace  # Multi-root VS Code workspace
-run.sh              # Symlink to docker/run.sh (workspace root)
-go.work             # Go workspace configuration
+run.sh                   # Symlink to docker/run.sh
+go.work                  # Go workspace configuration
 ```
 
 ## Two Ways to Work
