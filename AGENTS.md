@@ -86,13 +86,12 @@ for details on the underlying infrastructure.
 
 ### Headless Browser (Playwright)
 
-The `docker/Dockerfile` installs system dependencies and a
-global Chromium binary for headless browser testing and
-screenshot capture via [`@playwright/mcp`][playwright-mcp].
+The `docker/Dockerfile` installs system dependencies (fonts,
+libraries) required by Chromium for headless browser testing
+and screenshot capture via [`@playwright/mcp`][playwright-mcp].
 
-Chromium is installed to `/usr/lib/playwright` via the
-`PLAYWRIGHT_BROWSERS_PATH` environment variable, making it
-available to all users without per-project installation.
+Playwright downloads and manages its own bundled Chromium
+at runtime. No global browser installation is needed.
 
 To register the MCP server with Claude Code:
 

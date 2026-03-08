@@ -41,7 +41,3 @@ RUN apt-get update \
 	fonts-tlwg-loma-otf \
 	fonts-freefont-ttf \
 	&& apt-get clean
-
-# Install Chromium globally for Playwright/MCP use.
-ENV PLAYWRIGHT_BROWSERS_PATH=/usr/lib/playwright
-RUN npx playwright install chromium
