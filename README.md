@@ -54,6 +54,11 @@ the `docker-apptly-builder` image with:
 - **VS Code Server**: Pre-configured for DevContainer support
 - **Build Tools**: Essential compilation and development utilities
 
+This fork adds system dependencies for headless Chromium via
+`docker/Dockerfile`, enabling browser testing and MCP screenshot
+support using
+[`@playwright/mcp`](https://github.com/microsoft/playwright-mcp).
+
 The docker-builder project provides the foundation for this DevContainer,
 including the base images, build system, and container runtime wrapper. For
 details on available base images and the build infrastructure, see the

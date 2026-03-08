@@ -84,6 +84,29 @@ provides:
 See the [docker-builder documentation][docker-builder-agent]
 for details on the underlying infrastructure.
 
+### Headless Browser (Playwright)
+
+The `docker/Dockerfile` installs system dependencies and a
+global Chromium binary for headless browser testing and
+screenshot capture via [`@playwright/mcp`][playwright-mcp].
+
+Chromium is installed to `/usr/lib/playwright` via the
+`PLAYWRIGHT_BROWSERS_PATH` environment variable, making it
+available to all users without per-project installation.
+
+To register the MCP server with Claude Code:
+
+```bash
+claude mcp add playwright -- \
+  pnpx @playwright/mcp@latest --headless --browser chromium
+```
+
+To regenerate the system dependency list:
+
+```bash
+pnpm dlx playwright install-deps --dry-run chromium
+```
+
 ### Sandboxed Home Directory
 
 The container uses `.docker-run-cache/${HOME}` as an isolated home directory:
@@ -432,3 +455,4 @@ For docker-builder implementation details, see the
 [docker-builder AGENT documentation][docker-builder-agent].
 
 [docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENTS.md
+[playwright-mcp]: https://github.com/microsoft/playwright-mcp
