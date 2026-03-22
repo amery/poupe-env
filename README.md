@@ -134,6 +134,8 @@ through directly.
 - **Best for**: Host-side builds, CI/CD, quick commands, nested
   workspaces
 - **Lifecycle**: Per-command (container created and destroyed)
+- **Persistent State**: Sandboxed home and tool configurations
+  (`.claude`) survive across invocations
 - **Terminal**: Executes on host, trampolines to container
 - **Container-Aware**: Also works inside the container (passthrough)
 - **User**: Same UID/GID matching via entrypoint
@@ -266,8 +268,8 @@ The container sets these environment variables:
   the Dev Containers extension is installed in VS Code
 - **Mount permission errors**: Run `git status` to ensure the repository
   is clean, then rebuild the container
-- **Claude configuration not persisting**: Ensure the init script ran
-  successfully (it creates `~/.claude` if needed)
+- **Claude configuration not persisting**: Rebuild the container
+  (DevContainer) or verify `docker-builder-run` is installed (CLI)
 - **Windows path issues**: The system automatically detects WSL vs Docker
   Desktop and translates paths accordingly
 - **Windows username issues**: Special characters and spaces in Windows

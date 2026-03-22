@@ -106,8 +106,11 @@ The devcontainer selectively shares resources between host and container:
    - `.claude` directory for Claude AI configuration persistence
    - `.claude.json` for Claude AI state persistence
 
-This architecture ensures AI assistants have consistent access to their
-configuration while working in an isolated container environment.
+Both execution modes provide these tool config mounts — the
+DevContainer via devcontainer.json, and CLI mode via `run.sh`
+environment variables (`DOCKER_RUN_VOLUMES`, `DOCKER_EXTRA_OPTS`).
+This ensures AI assistants have consistent access to their
+configuration regardless of how the container is launched.
 
 ## How Initialization Works
 
@@ -434,8 +437,8 @@ When working with docker-builder:
 
 - **docker-builder changes**: Affect all environments using its base images
 - **dev-env changes**: Only affect this specific DevContainer environment
-- **Coordination needed**: Major changes to docker-builder's run.sh or base
-  images may require updates here
+- **Coordination needed**: Major changes to `docker-builder-run` or
+  base images may require updates here
 
 For docker-builder implementation details, see the
 [docker-builder AGENT documentation][docker-builder-agent].
