@@ -17,6 +17,7 @@ accurate and synchronized.
 - **Base Image**: `amery/docker-builder` (Ubuntu + VS Code + Go + Node.js)
 - **Execution Modes**: DevContainer (long-lived) and `x` (per-command)
 - **Trampoline**: `x` → `run.sh` → docker-builder-run → container
+- **Passthrough**: `run.sh` detects `/.dockerenv` and skips docker
 
 ## Dual Execution Architecture
 
@@ -36,7 +37,8 @@ debugging:
 
 ### CLI Mode via `x` (Per-Command)
 
-The `x` helper trampolines commands through docker-builder-run:
+The `x` helper trampolines commands through `docker-builder-run`
+on the host:
 
 - **Lifecycle**: Fresh container per command invocation
 - **Entry**: `x` → `run.sh` → docker-builder-run → container
@@ -45,6 +47,8 @@ The `x` helper trampolines commands through docker-builder-run:
 - **Use Case**: Host-side builds, CI/CD, nested workspaces
 - **Script Portability**: Scripts never include `x`; use `x ./script.sh`
   from host
+- **Container-Aware**: `run.sh` detects `/.dockerenv` and passes
+  through directly, so `x` also works inside the container
 
 Both modes converge at the container entrypoint, which handles user
 creation, environment setup, and directory navigation (CURDIR). This
@@ -78,7 +82,7 @@ This project builds upon
 provides:
 
 - **Base Images**: The `docker-apptly-builder` image used as foundation
-- **Run Script**: The `docker/run.sh` wrapper for container execution
+- **Run Script**: `docker-builder-run` for container execution
 - **Build System**: Automated Docker image building and management
 
 See the [docker-builder documentation][docker-builder-agent]
@@ -267,13 +271,18 @@ When `run.sh` is found, `x` executes the trampoline sequence:
 x command args
     ↓
 run.sh command args
-    ↓
-docker-builder-run command args
-    ↓
-docker run ... entrypoint.sh
-    ↓
-command args (in container at CURDIR)
+    ├── /.dockerenv exists → exec command args (passthrough)
+    └── host → docker-builder-run command args
+                    ↓
+               docker run ... entrypoint.sh
+                    ↓
+               command args (in container at CURDIR)
 ```
+
+On the host, `run.sh` locates `docker-builder-run` and trampolines
+into the container. Inside the container (`/.dockerenv` present),
+`run.sh` passes through directly, so `x` works in both
+environments without obstruction.
 
 ### Entrypoint Behaviour
 
