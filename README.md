@@ -162,14 +162,18 @@ integrated terminal, debugging, and extensions.
 
 ### 2. Command-Line via `x` (CLI Trampoline)
 
-Use the `x` helper from the host to execute commands in fresh
-containers. Each invocation creates a new container via
-docker-builder-run.
+Use the `x` helper to execute commands in containers. On the host,
+each invocation creates a new container via docker-builder-run.
+Inside the container, `run.sh` detects `/.dockerenv` and passes
+through directly.
 
 - **Best for**: Host-side builds, CI/CD, quick commands, nested
   workspaces
 - **Lifecycle**: Per-command (container created and destroyed)
+- **Persistent State**: Sandboxed home and tool configurations
+  (`.claude`) survive across invocations
 - **Terminal**: Executes on host, trampolines to container
+- **Container-Aware**: Also works inside the container (passthrough)
 - **User**: Same UID/GID matching via entrypoint
 
 Both workflows use the same base image and entrypoint, ensuring
@@ -203,22 +207,26 @@ x echo "hello"
 
 ### How It Works
 
-1. **Workspace Detection**: Searches for `run.sh` by checking:
-   - `.repo` directory (for repo tool workspaces)
-   - Git workspace root: tries superproject first (`git rev-parse
-     --show-superproject-working-tree`), falls back to repository root
-     (`git rev-parse --show-toplevel`)
-   - Parent directories up to filesystem root (brute force)
+- **Workspace Detection**: Searches for `run.sh` by checking:
+  - `.repo` directory (for repo tool workspaces)
+  - Git workspace root: tries superproject first (`git rev-parse
+    --show-superproject-working-tree`), falls back to repository root
+    (`git rev-parse --show-toplevel`)
+  - Parent directories up to filesystem root (brute force)
 
-2. **Trampoline Execution**: When `run.sh` is found:
-   - `x` calls `run.sh` with your command
-   - `run.sh` invokes docker-builder-run
-   - docker-builder-run creates fresh container
-   - Entrypoint sets up user and navigates to CURDIR
-   - Your command executes in correct directory
+- **Trampoline Execution**: When `run.sh` is found on the host:
+  - `x` calls `run.sh` with your command
+  - `run.sh` invokes docker-builder-run
+  - docker-builder-run creates fresh container
+  - Entrypoint sets up user and navigates to CURDIR
+  - Your command executes in correct directory
 
-3. **Fallback**: If no `run.sh` is found, executes command directly on
-   host
+- **Container Passthrough**: If `run.sh` detects `/.dockerenv`
+  (inside a container), it skips docker and executes the command
+  directly
+
+- **Fallback**: If no `run.sh` is found, executes command directly
+  on host
 
 ### Key Features
 
@@ -296,8 +304,8 @@ The container sets these environment variables:
   the Dev Containers extension is installed in VS Code
 - **Mount permission errors**: Run `git status` to ensure the repository
   is clean, then rebuild the container
-- **Claude configuration not persisting**: Ensure the init script ran
-  successfully (it creates `~/.claude` if needed)
+- **Claude configuration not persisting**: Rebuild the container
+  (DevContainer) or verify `docker-builder-run` is installed (CLI)
 - **Windows path issues**: The system automatically detects WSL vs Docker
   Desktop and translates paths accordingly
 - **Windows username issues**: Special characters and spaces in Windows
@@ -328,7 +336,7 @@ This project is a specialized implementation of
 [docker-builder](https://github.com/amery/docker-builder):
 
 - **Extends**: Uses docker-builder's `docker-apptly-builder` base image
-- **Leverages**: The `run.sh` script for container execution
+- **Leverages**: `docker-builder-run` for container execution
 - **Demonstrates**: How to create DevContainer environments on top of
   docker-builder infrastructure
 
@@ -336,7 +344,7 @@ When docker-builder is updated:
 
 - Base image improvements automatically benefit this environment
 - Breaking changes may require updates to the Dockerfile or configuration
-- New features in `run.sh` become available through the symlink
+- Updates to `docker-builder-run` improve container execution
 
 ## Documentation
 
