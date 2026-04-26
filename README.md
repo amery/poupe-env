@@ -32,6 +32,8 @@ set.
   prevent pollution of host home
 - **Claude AI Integration**: Automatic bind mounts for `.claude` config
   and state persistence
+- **GPG Signing**: Forwards host GPG agent socket into the container
+  for commit and tag signing
 - **Smart Mount System**: Selective bind mounts preserve tool configurations
   while isolating the container
 - **Automatic Setup**: Self-configuring initialization script

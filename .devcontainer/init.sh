@@ -158,6 +158,17 @@ gen_json_overlay() {
 	local ws='${localWorkspaceFolder}'
 	local home='${localEnv:HOME}'
 
+	# GPG agent socket forwarding
+	local gpg_mount=""
+	local gpg_sock_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gnupg"
+	if [ -d "$gpg_sock_dir" ]; then
+		gpg_mount=', {
+		"source": "'"$gpg_sock_dir"'",
+		"target": "'"$gpg_sock_dir"'",
+		"type": "bind"
+	}'
+	fi
+
 	cat <<EOT
 {
 	"containerEnv": {
@@ -179,7 +190,7 @@ gen_json_overlay() {
 		"source": "$home/.claude.json",
 		"target": "$home/.claude.json",
 		"type": "bind"
-	}]
+	}$gpg_mount]
 }
 EOT
 }

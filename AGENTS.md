@@ -127,12 +127,21 @@ The devcontainer selectively shares resources between host and container:
 3. **Tool Configs**: Specific directories bind-mounted from host:
    - `.claude` directory for Claude AI configuration persistence
    - `.claude.json` for Claude AI state persistence
+4. **GPG Agent Socket**: Conditionally bind-mounted from host for
+   commit signing:
+   - Socket directory at `$XDG_RUNTIME_DIR/gnupg` (falls back to
+     `/run/user/$(id -u)/gnupg`)
+   - Only mounted when the directory exists on the host
+   - Enables GPG signing inside the container using the host's
+     gpg-agent (runs in restricted mode across namespaces)
+   - Container needs public keys imported (`gpg --import ~/.gnupg/*.asc`)
 
-Both execution modes provide these tool config mounts — the
-DevContainer via devcontainer.json, and CLI mode via `run.sh`
-environment variables (`DOCKER_RUN_VOLUMES`, `DOCKER_EXTRA_OPTS`).
-This ensures AI assistants have consistent access to their
-configuration regardless of how the container is launched.
+Both execution modes provide these tool config and GPG socket
+mounts — the DevContainer via devcontainer.json, and CLI mode via
+`run.sh` environment variables (`DOCKER_RUN_VOLUMES`,
+`DOCKER_EXTRA_OPTS`). This ensures AI assistants and signing
+tools have consistent access to their configuration regardless
+of how the container is launched.
 
 ## How Initialization Works
 
@@ -158,6 +167,7 @@ Key functions in platform scripts:
   - Sandboxed home directory mount
   - Claude directory bind mount
   - Claude JSON file bind mount
+  - GPG agent socket bind mount (conditional)
 - `json_sanitize`: Strips comments from JSONC files with validation
 - `json_merge`: Merges JSON configurations with 2-space formatting
 - `rename`: Atomic file updates to avoid race conditions

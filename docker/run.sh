@@ -22,6 +22,12 @@ else
 
 	export DOCKER_RUN_VOLUMES="${DOCKER_RUN_VOLUMES:+$DOCKER_RUN_VOLUMES }CLAUDE_CONFIG_DIR"
 	export DOCKER_EXTRA_OPTS="${DOCKER_EXTRA_OPTS:+$DOCKER_EXTRA_OPTS }-v '$HOME/.claude.json:$HOME/.claude.json'"
+
+	# forward GPG agent socket for commit signing
+	GPG_SOCK_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gnupg"
+	if [ -d "$GPG_SOCK_DIR" ]; then
+		export DOCKER_EXTRA_OPTS="${DOCKER_EXTRA_OPTS:+$DOCKER_EXTRA_OPTS }-v '$GPG_SOCK_DIR:$GPG_SOCK_DIR'"
+	fi
 fi
 
 [ $# -gt 0 ] || set -- "${SHELL:-/bin/sh}"
