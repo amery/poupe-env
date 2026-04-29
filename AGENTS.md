@@ -259,11 +259,14 @@ generate_overlay → mount config → merge → updated devcontainer.json
 ## The `x` Command Architecture
 
 The `x` helper provides workspace-aware command execution via the
-docker-builder-run trampoline pattern.
+`docker-builder-run` trampoline pattern. Both `x` and
+`docker-builder-run` are published as release assets by
+[docker-builder][docker-builder-releases]; see [README.md](./README.md#installation)
+for the install snippet.
 
 ### Workspace Detection Algorithm
 
-Located in `bin/x`, the script searches for `run.sh`:
+The script searches for `run.sh`:
 
 1. **Repo Tool Workspaces**: Searches for `.repo` directory via
    brute-force parent directory traversal
@@ -454,3 +457,4 @@ For docker-builder implementation details, see the
 [docker-builder AGENT documentation][docker-builder-agent].
 
 [docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENTS.md
+[docker-builder-releases]: https://github.com/amery/docker-builder/releases/latest
