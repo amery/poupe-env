@@ -8,7 +8,8 @@
     "--cap-add=NET_ADMIN",
     "--cap-add=SYS_PTRACE",
     "--security-opt=apparmor:unconfined",
-    "--security-opt=seccomp:unconfined"
+    "--security-opt=seccomp:unconfined",
+    "--add-host=host.docker.internal:host-gateway"
   ],
   "containerEnv": {
     "GOPATH": "${localWorkspaceFolder}",
