@@ -18,6 +18,7 @@ accurate and synchronized.
 - **Execution Modes**: DevContainer (long-lived) and `x` (per-command)
 - **Trampoline**: `x` → `run.sh` → docker-builder-run → container
 - **Passthrough**: `run.sh` detects `/.dockerenv` and skips docker
+- **Host Alias**: container reaches host as `host.docker.internal`
 
 ## Dual Execution Architecture
 
@@ -142,6 +143,73 @@ mounts — the DevContainer via devcontainer.json, and CLI mode via
 `DOCKER_EXTRA_OPTS`). This ensures AI assistants and signing
 tools have consistent access to their configuration regardless
 of how the container is launched.
+
+### Host Access from the Container
+
+Both `runArgs` (devcontainer.json) and `DOCKER_EXTRA_OPTS` (run.sh)
+include `--add-host=host.docker.internal:host-gateway`. Docker
+resolves the `host-gateway` sentinel at container start and writes
+the bridge gateway IP into `/etc/hosts`, so containers reach the
+host as `host.docker.internal` regardless of the bridge's IP. This
+replaces the brittle pattern of hard-coding `172.17.0.1`.
+
+For workflows that drive a host-side tool from inside the container
+(e.g. `chrome-devtools-mcp` tunnelling to a visible Chrome on the
+host), use this alias.
+
+#### Host-side prerequisites
+
+- **`sshd` must listen on the bridge interface** for SSH-from-container
+  workflows. The default `ListenAddress 0.0.0.0` accepts connections
+  from `docker0`. Hardened configurations narrowed to `127.0.0.1` will
+  reject the container.
+- **Host firewall must allow `docker0` → host services.** On ufw, for
+  SSH:
+
+  ```bash
+  sudo ufw allow in on docker0 to any port 22 proto tcp
+  ```
+
+  On nftables/iptables, add an `ACCEPT` in the `INPUT` chain for
+  `-i docker0 -p tcp --dport <port>`.
+
+#### Rootless Docker caveat
+
+On rootless Docker the `host-gateway` sentinel resolves to `0.0.0.0`
+unless `dockerd` is started with `--host-gateway-ip=<ip>` (or the
+equivalent in `/etc/docker/daemon.json`). Docker Desktop on
+macOS/Windows pre-wires `host.docker.internal` independently, so the
+spelling stays uniform there.
+
+#### DNS staleness on the default bridge
+
+Docker copies the host's `/etc/resolv.conf` into the container at
+start time and marks it `(legacy)`. Those addresses then go stale
+when the host moves between networks (e.g. a laptop leaving a LAN
+whose gateway DNS was a private IP). Set static resolvers in
+`/etc/docker/daemon.json` to avoid this:
+
+```json
+{ "dns": ["1.1.1.1", "1.0.0.1"] }
+```
+
+Restart the Docker daemon after the change. Containers then receive
+the configured resolvers regardless of the host's current network.
+Choose resolvers reachable from every network the host might join —
+an internal-only resolver would re-create the problem.
+
+#### Verification
+
+From inside a container:
+
+```bash
+getent hosts host.docker.internal
+ssh -o BatchMode=yes -o ConnectTimeout=5 host.docker.internal true
+```
+
+`Permission denied (publickey)` from the SSH probe confirms the TCP
+path reached `sshd`; only auth remains (mount `~/.ssh` or forward
+the agent via `$SSH_AUTH_SOCK`).
 
 ## How Initialization Works
 
@@ -281,11 +349,14 @@ generate_overlay → mount config → merge → updated devcontainer.json
 ## The `x` Command Architecture
 
 The `x` helper provides workspace-aware command execution via the
-docker-builder-run trampoline pattern.
+`docker-builder-run` trampoline pattern. Both `x` and
+`docker-builder-run` are published as release assets by
+[docker-builder][docker-builder-releases]; see [README.md](./README.md#installation)
+for the install snippet.
 
 ### Workspace Detection Algorithm
 
-Located in `bin/x`, the script searches for `run.sh`:
+The script searches for `run.sh`:
 
 1. **Repo Tool Workspaces**: Searches for `.repo` directory via
    brute-force parent directory traversal
@@ -476,4 +547,5 @@ For docker-builder implementation details, see the
 [docker-builder AGENT documentation][docker-builder-agent].
 
 [docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENTS.md
+[docker-builder-releases]: https://github.com/amery/docker-builder/releases/latest
 [playwright-mcp]: https://github.com/microsoft/playwright-mcp

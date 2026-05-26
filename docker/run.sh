@@ -28,6 +28,11 @@ else
 	if [ -d "$GPG_SOCK_DIR" ]; then
 		export DOCKER_EXTRA_OPTS="${DOCKER_EXTRA_OPTS:+$DOCKER_EXTRA_OPTS }-v '$GPG_SOCK_DIR:$GPG_SOCK_DIR'"
 	fi
+
+	# expose host as host.docker.internal — Docker resolves the
+	# host-gateway sentinel to the bridge gateway IP at container
+	# start, replacing the brittle pattern of hard-coding 172.17.0.1.
+	export DOCKER_EXTRA_OPTS="${DOCKER_EXTRA_OPTS:+$DOCKER_EXTRA_OPTS }--add-host=host.docker.internal:host-gateway"
 fi
 
 [ $# -gt 0 ] || set -- "${SHELL:-/bin/sh}"

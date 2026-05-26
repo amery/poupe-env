@@ -132,9 +132,6 @@ docker/               # Base container definitions
 ├── Dockerfile        # Base image configuration
 └── run.sh            # Container runtime script
 
-bin/                 # Helper scripts
-└── x               # Workspace helper (container access)
-
 src/github.com/poupe-ui/  # Git submodules
 ├── poupe/
 ├── eslint-config/
@@ -143,7 +140,7 @@ src/github.com/poupe-ui/  # Git submodules
 └── poupe-website/
 
 poupe-ui.code-workspace  # Multi-root VS Code workspace
-run.sh                   # Symlink to docker/run.sh
+run.sh                   # Symlink to docker/run.sh (workspace root marker)
 go.work                  # Go workspace configuration
 ```
 
@@ -185,8 +182,25 @@ makes them portable between DevContainer (direct execution) and host
 
 ## The `x` Helper
 
-The `x` script in `bin/` provides intelligent workspace detection and
-command execution via the docker-builder-run trampoline.
+The `x` script provides intelligent workspace detection and command
+execution via the `docker-builder-run` trampoline. Both are published
+as release assets by
+[docker-builder](https://github.com/amery/docker-builder).
+
+### Installation
+
+Download the latest `x` and `docker-builder-run` from
+[docker-builder releases](https://github.com/amery/docker-builder/releases/latest)
+and place them on your `PATH`:
+
+```bash
+INSTALL=~/.local/bin
+mkdir -p "$INSTALL"
+BASE=https://github.com/amery/docker-builder/releases/latest/download
+curl -L -o "$INSTALL/x" "$BASE/x"
+curl -L -o "$INSTALL/docker-builder-run" "$BASE/docker-builder-run"
+chmod +x "$INSTALL/x" "$INSTALL/docker-builder-run"
+```
 
 ### Usage
 
