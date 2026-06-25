@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# local is not in POSIX sh but is supported by the target shells (dash,
+# bash); it is used throughout this script.
+# shellcheck disable=SC3043
 set -eu
 
 err() {
@@ -120,17 +123,25 @@ rename() {
 #
 DOCKERFILE=docker/Dockerfile
 
-get_metadata() {
-	local FROM=$(sed -n -e 's|^[\t ]*FROM[\t ]\+\([^\t ]\+\)[\t ]*$|\1|p' "$DOCKERFILE" | tail -n1)
+get_base_image() {
+	sed -n -e 's|^[\t ]*FROM[\t ]\+\([^\t ]\+\)[\t ]*$|\1|p' "$1" | tail -n1
+}
 
-	${DOCKER:-docker} inspect --format='{{index .Config.Labels "devcontainer.metadata"}}' "$FROM" || echo '[]'
+get_metadata() {
+	local from="$1"
+
+	${DOCKER:-docker} inspect --format='{{index .Config.Labels "devcontainer.metadata"}}' "$from" || echo '[]'
 }
 
 metadata() {
-	get_metadata | jq -c '. + [{"containerUser": $USER}]' --arg USER "$USER"
+	local from="$1"
+
+	get_metadata "$from" | jq -c '. + [{"containerUser": $USER}]' --arg USER "$USER"
 }
 
 gen_dockerfile() {
+	local from="$1"
+
 	cat <<EOT
 $(cat "$DOCKERFILE")
 
@@ -140,24 +151,33 @@ RUN /devcontainer-init.sh "$USER" "$HOME" && rm -f /devcontainer-init.sh
 
 # run as user
 #
-LABEL devcontainer.metadata='$(metadata)'
+LABEL devcontainer.metadata='$(metadata "$from")'
 
 USER ${USER}
 EOT
 }
 
+FROM=$(get_base_image "$DOCKERFILE")
+
 F="$B/Dockerfile"
 T="$F.$$"
+# expand $T now: the temp path is fixed at trap setup and removed verbatim
+# shellcheck disable=SC2064
 trap "rm -f '$T'" EXIT
-gen_dockerfile > "$T"
+gen_dockerfile "$FROM" > "$T"
 rename "$T" "$F"
 
 # devcontainer.json
 #
-gen_json_overlay() {
-	local ws='${localWorkspaceFolder}'
-	local home='${localEnv:HOME}'
+# WS_ENV/HOME_ENV are devcontainer.json substitution tokens, written into the
+# JSON literally; VS Code expands them at container creation, not the shell.
+# Single-quoted so the shell leaves them untouched.
+# shellcheck disable=SC2016
+readonly WS_ENV='${localWorkspaceFolder}'
+# shellcheck disable=SC2016
+readonly HOME_ENV='${localEnv:HOME}'
 
+gen_json_overlay() {
 	# GPG agent socket forwarding
 	local gpg_mount=""
 	local gpg_sock_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gnupg"
@@ -172,23 +192,23 @@ gen_json_overlay() {
 	cat <<EOT
 {
 	"containerEnv": {
-		"GOPATH": "$ws",
-		"WS": "$ws",
-		"CURDIR": "$ws"
+		"GOPATH": "$WS_ENV",
+		"WS": "$WS_ENV",
+		"CURDIR": "$WS_ENV"
 	},
-	"workspaceMount": "source=$ws,target=$ws,type=bind,consistency=cached",
-	"workspaceFolder": "$ws",
+	"workspaceMount": "source=$WS_ENV,target=$WS_ENV,type=bind,consistency=cached",
+	"workspaceFolder": "$WS_ENV",
 	"mounts": [{
-		"source": "$ws/$C/$home",
-		"target": "$home",
+		"source": "$WS_ENV/$C/$HOME_ENV",
+		"target": "$HOME_ENV",
 		"type": "bind"
 	}, {
-		"source": "$home/.claude",
-		"target": "$home/.claude",
+		"source": "$HOME_ENV/.claude",
+		"target": "$HOME_ENV/.claude",
 		"type": "bind"
 	}, {
-		"source": "$home/.claude.json",
-		"target": "$home/.claude.json",
+		"source": "$HOME_ENV/.claude.json",
+		"target": "$HOME_ENV/.claude.json",
 		"type": "bind"
 	}$gpg_mount]
 }
@@ -211,6 +231,8 @@ F="$B/devcontainer.json"
 T0="$F.0.$$"
 T1="$F.1.$$"
 T2="$F.2.$$"
+# expand the temp paths now: fixed at trap setup and removed verbatim
+# shellcheck disable=SC2064
 trap "rm -f '$T0' '$T1' '$T2'" EXIT
 
 json_sanitize "$F" > "$T0"
@@ -224,6 +246,8 @@ rm -f "$T0" "$T1"
 #
 
 # Bound directories (sandboxed)
+# pre-quoted path list; single iteration intended, extend by adding lines
+# shellcheck disable=SC2066
 for x in \
 	"$HOME" \
 	; do
@@ -239,6 +263,8 @@ for x in \
 done
 
 # Host-bound files
+# pre-quoted path list; single iteration intended, extend by adding lines
+# shellcheck disable=SC2066
 for x in \
 	"$HOME/.claude.json" \
 	; do
