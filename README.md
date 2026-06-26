@@ -85,6 +85,8 @@ process:
   integration
 - Handles path translation on Windows (e.g. `C:\Users\john` →
   `/c/Users/john`)
+- Pulls the base image on first run (if not already present) to read its
+  metadata
 - Generates a custom Dockerfile with user-specific metadata
 
 ## Project Structure

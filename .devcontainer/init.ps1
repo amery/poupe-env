@@ -59,6 +59,20 @@ function Get-BaseImage {
         ForEach-Object { $matches[1] } | Select-Object -Last 1
 }
 
+# docker inspect only sees local images; pull on first run so the base
+# image's metadata label is readable instead of silently lost.
+function Initialize-Image {
+    param([string]$FROM)
+
+    & docker image inspect $FROM 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { return }
+
+    & docker pull $FROM
+    if ($LASTEXITCODE -ne 0) {
+        Stop-WithError "could not pull $FROM"
+    }
+}
+
 function Get-Metadata {
     param([string]$FROM)
 
@@ -140,6 +154,7 @@ USER $USER
 
 # Write Dockerfile
 $FROM = Get-BaseImage $DOCKERFILE
+Initialize-Image $FROM
 $F = "$B/Dockerfile"
 $T = "$F.tmp"
 New-Dockerfile $FROM | Out-File -Encoding UTF8 -NoNewline $T

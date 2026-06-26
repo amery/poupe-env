@@ -127,6 +127,15 @@ get_base_image() {
 	sed -n -e 's|^[\t ]*FROM[\t ]\+\([^\t ]\+\)[\t ]*$|\1|p' "$1" | tail -n1
 }
 
+# docker inspect only sees local images; pull on first run so the base
+# image's metadata label is readable instead of silently lost.
+may_pull_image() {
+	local from="$1"
+
+	${DOCKER:-docker} image inspect "$from" >/dev/null 2>&1 ||
+		${DOCKER:-docker} pull "$from" >&2
+}
+
 get_metadata() {
 	local from="$1"
 
@@ -158,6 +167,7 @@ EOT
 }
 
 FROM=$(get_base_image "$DOCKERFILE")
+may_pull_image "$FROM" || die "could not pull $FROM"
 
 F="$B/Dockerfile"
 T="$F.$$"
