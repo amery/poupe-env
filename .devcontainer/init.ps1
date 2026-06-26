@@ -52,9 +52,15 @@ function Rename-IfDifferent {
 # Dockerfile generation
 $DOCKERFILE = "docker/Dockerfile"
 
+function Get-BaseImage {
+    param([string]$FILE)
+
+    Get-Content $FILE | Where-Object { $_ -match '^\s*FROM\s+(\S+)\s*$' } |
+        ForEach-Object { $matches[1] } | Select-Object -Last 1
+}
+
 function Get-Metadata {
-    $FROM = Get-Content $DOCKERFILE | Where-Object { $_ -match '^\s*FROM\s+(.+)\s*$' } |
-            ForEach-Object { $matches[1] } | Select-Object -Last 1
+    param([string]$FROM)
 
     try {
         $metadata = & docker inspect --format='{{index .Config.Labels "devcontainer.metadata"}}' $FROM 2>$null
@@ -66,7 +72,9 @@ function Get-Metadata {
 }
 
 function Get-UpdatedMetadata {
-    $metadata = Get-Metadata
+    param([string]$FROM)
+
+    $metadata = Get-Metadata $FROM
     # ConvertFrom-Json yields $null for `[]` and a bare object for a
     # single-entry array, and Windows PowerShell 5.1's ConvertTo-Json unwraps a
     # one-element array back to a bare object. Force array context, then
@@ -108,8 +116,10 @@ function ConvertTo-ContainerPath {
 
 # Generate Dockerfile content
 function New-Dockerfile {
+    param([string]$FROM)
+
     $baseContent = Get-Content $DOCKERFILE -Raw
-    $metadata = Get-UpdatedMetadata
+    $metadata = Get-UpdatedMetadata $FROM
     # Translate Windows home path to container path
     $containerHome = ConvertTo-ContainerPath $env:USERPROFILE
 
@@ -129,9 +139,10 @@ USER $USER
 }
 
 # Write Dockerfile
+$FROM = Get-BaseImage $DOCKERFILE
 $F = "$B/Dockerfile"
 $T = "$F.tmp"
-New-Dockerfile | Out-File -Encoding UTF8 -NoNewline $T
+New-Dockerfile $FROM | Out-File -Encoding UTF8 -NoNewline $T
 Rename-IfDifferent $T $F
 
 # Generate JSON overlay
