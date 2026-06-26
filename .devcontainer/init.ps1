@@ -2,14 +2,14 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-function Write-Error-Message {
+function Write-ErrorMessage {
     param([string]$Message)
     Write-Host "E: $Message" -ForegroundColor Red
 }
 
-function Exit-With-Error {
+function Stop-WithError {
     param([string]$Message)
-    Write-Error-Message $Message
+    Write-ErrorMessage $Message
     exit 1
 }
 
@@ -22,14 +22,14 @@ $C = ".docker-run-cache"
 
 # Get user and home information
 if (-not $env:USERNAME) {
-    Exit-With-Error "no USERNAME environment variable"
+    Stop-WithError "no USERNAME environment variable"
 }
 # Sanitize username for Linux compatibility
 # Replace spaces and invalid characters with underscores, convert to lowercase
 $USER = $env:USERNAME -replace '[^a-zA-Z0-9._-]', '_' -replace '^[0-9]', '_$0' | ForEach-Object { $_.ToLower() }
 
 if (-not $env:USERPROFILE) {
-    Exit-With-Error "no USERPROFILE"
+    Stop-WithError "no USERPROFILE"
 }
 $HOME = $env:USERPROFILE
 
@@ -67,14 +67,20 @@ function Get-Metadata {
 
 function Get-UpdatedMetadata {
     $metadata = Get-Metadata
-    # Convert to JSON object, add containerUser, convert back
-    $jsonObj = $metadata | ConvertFrom-Json
-    $jsonObj += @{containerUser = $USER}
-    return ($jsonObj | ConvertTo-Json -Compress)
+    # ConvertFrom-Json yields $null for `[]` and a bare object for a
+    # single-entry array, and Windows PowerShell 5.1's ConvertTo-Json unwraps a
+    # one-element array back to a bare object. Force array context, then
+    # serialise each entry and assemble the array by hand so
+    # devcontainer.metadata stays a JSON array regardless of entry count or
+    # PowerShell version.
+    $items = @($metadata | ConvertFrom-Json)
+    $items += @{containerUser = $USER}
+    $parts = $items | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 10 }
+    return "[$($parts -join ',')]"
 }
 
 # Function to translate Windows path to container path
-function Convert-ToContainerPath {
+function ConvertTo-ContainerPath {
     param([string]$WindowsPath)
     
     # Check if Docker is using WSL backend
@@ -101,11 +107,11 @@ function Convert-ToContainerPath {
 }
 
 # Generate Dockerfile content
-function Generate-Dockerfile {
+function New-Dockerfile {
     $baseContent = Get-Content $DOCKERFILE -Raw
     $metadata = Get-UpdatedMetadata
     # Translate Windows home path to container path
-    $containerHome = Convert-ToContainerPath $env:USERPROFILE
+    $containerHome = ConvertTo-ContainerPath $env:USERPROFILE
 
     return @"
 $baseContent
@@ -125,17 +131,17 @@ USER $USER
 # Write Dockerfile
 $F = "$B/Dockerfile"
 $T = "$F.tmp"
-Generate-Dockerfile | Out-File -Encoding UTF8 -NoNewline $T
+New-Dockerfile | Out-File -Encoding UTF8 -NoNewline $T
 Rename-IfDifferent $T $F
 
 # Generate JSON overlay
-function Generate-JsonOverlay {
+function New-JsonOverlay {
     # Note: VSCode variables will be resolved at runtime
     # Translate Windows paths to container paths
     
     # Translate paths
-    $containerHome = Convert-ToContainerPath $env:USERPROFILE
-    $workspaceFolder = Convert-ToContainerPath $PWD.Path
+    $containerHome = ConvertTo-ContainerPath $env:USERPROFILE
+    $workspaceFolder = ConvertTo-ContainerPath $PWD.Path
     
     $overlay = @{
         containerEnv = @{
@@ -143,7 +149,7 @@ function Generate-JsonOverlay {
             WS = $workspaceFolder
             CURDIR = $workspaceFolder
         }
-        workspaceMount = "source=${localWorkspaceFolder},target=$workspaceFolder,type=bind,consistency=cached"
+        workspaceMount = 'source=${localWorkspaceFolder},target=' + $workspaceFolder + ',type=bind,consistency=cached'
         workspaceFolder = $workspaceFolder
         mounts = @(
             @{
@@ -194,7 +200,7 @@ if (-not (Test-Path $F) -and (Test-Path $TEMPLATE)) {
 }
 
 $T = "$F.tmp"
-$overlayJson = Generate-JsonOverlay
+$overlayJson = New-JsonOverlay
 $mergedJson = Merge-JsonFiles $F $overlayJson
 $mergedJson | Out-File -Encoding UTF8 -NoNewline $T
 Rename-IfDifferent $T $F
