@@ -226,8 +226,39 @@ EOT
 }
 
 
+# Strip // line comments (JSONC) and validate. A // inside a string value (e.g.
+# an https:// URL) is preserved: awk walks each line tracking whether it is
+# inside a string and only cuts a // that begins outside one. JSON strings never
+# span lines, so per-line scanning suffices.
 json_sanitize() {
-	sed -e 's|//.*||g' -e '/^[[:space:]]*$/d' "$1" | jq -e .
+	awk '
+	{
+		out = ""
+		in_str = 0
+		i = 1
+		while (i <= length($0)) {
+			c = substr($0, i, 1)
+			if (in_str) {
+				out = out c
+				if (c == "\\") {
+					i++
+					out = out substr($0, i, 1)
+				} else if (c == "\"") {
+					in_str = 0
+				}
+			} else if (c == "\"") {
+				in_str = 1
+				out = out c
+			} else if (c == "/" && substr($0, i + 1, 1) == "/") {
+				break
+			} else {
+				out = out c
+			}
+			i++
+		}
+		print out
+	}
+	' "$1" | jq -e .
 }
 
 json_merge() {
