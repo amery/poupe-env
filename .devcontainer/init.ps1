@@ -31,7 +31,10 @@ $USER = $env:USERNAME -replace '[^a-zA-Z0-9._-]', '_' -replace '^[0-9]', '_$0' |
 if (-not $env:USERPROFILE) {
     Stop-WithError "no USERPROFILE"
 }
-$HOME = $env:USERPROFILE
+# $HOME is an automatic variable; under Set-StrictMode shadowing it is a
+# hazard. $UserHome is the real Windows home (e.g. C:\Users\amery); the
+# container-side path is derived separately with ConvertTo-ContainerPath.
+$UserHome = $env:USERPROFILE
 
 # Function to rename file if different
 function Rename-IfDifferent {
@@ -179,7 +182,10 @@ function New-JsonOverlay {
         workspaceFolder = $workspaceFolder
         mounts = @(
             @{
-                source = '${localWorkspaceFolder}/.docker-run-cache/${localEnv:USERPROFILE}'
+                # The sandboxed-home source cannot use the ${localEnv:USERPROFILE}
+                # token: it resolves to C:\Users\... and would embed a drive
+                # colon mid-path. Bake the translated container path instead.
+                source = '${localWorkspaceFolder}/' + $C + $containerHome
                 target = $containerHome
                 type = 'bind'
             },
@@ -232,31 +238,38 @@ $mergedJson | Out-File -Encoding UTF8 -NoNewline $T
 Rename-IfDifferent $T $F
 
 # Create mount points
-# Bound directories (sandboxed)
-New-Item -ItemType Directory -Force -Path "$C$HOME" | Out-Null
+#
+# Cache-side mount points live under $C keyed by the *container* (translated,
+# POSIX-style) path, so they match the overlay's resolved mount sources; real
+# host directories and files are created at their Windows paths. On Linux the
+# two coincide, on Windows they diverge, so each entry carries both.
+$containerHome = ConvertTo-ContainerPath $env:USERPROFILE
+$workspaceFolder = ConvertTo-ContainerPath $PWD.Path
 
-# Host-bound directories
+# Bound directory (sandboxed home)
+New-Item -ItemType Directory -Force -Path "$C$containerHome" | Out-Null
+
+# Host-bound directories: the real host path plus its cache-side mount point
 @(
-    $PWD.Path,
-    "$HOME/.claude"
+    @{ Host = $PWD.Path;           Container = $workspaceFolder },
+    @{ Host = "$UserHome/.claude"; Container = "$containerHome/.claude" }
 ) | ForEach-Object {
-    New-Item -ItemType Directory -Force -Path "$C$_" | Out-Null
-    New-Item -ItemType Directory -Force -Path $_ | Out-Null
+    New-Item -ItemType Directory -Force -Path "$C$($_.Container)" | Out-Null
+    New-Item -ItemType Directory -Force -Path $_.Host | Out-Null
 }
 
 # Host-bound files
 @(
-    "$HOME/.claude.json"
+    @{ Host = "$UserHome/.claude.json"; Container = "$containerHome/.claude.json" }
 ) | ForEach-Object {
-    $cachePath = "$C$_"
-    New-Item -ItemType File -Force -Path $cachePath | Out-Null
+    New-Item -ItemType File -Force -Path "$C$($_.Container)" | Out-Null
 
-    if ($_ -match '\.json$') {
-        if (-not (Test-Path $_) -or (Get-Item $_).Length -eq 0) {
-            '{}' | Out-File -Encoding UTF8 -NoNewline $_
+    if ($_.Host -match '\.json$') {
+        if (-not (Test-Path $_.Host) -or (Get-Item $_.Host).Length -eq 0) {
+            '{}' | Out-File -Encoding UTF8 -NoNewline $_.Host
         }
     } else {
-        New-Item -ItemType File -Force -Path $_ | Out-Null
+        New-Item -ItemType File -Force -Path $_.Host | Out-Null
     }
 }
 
