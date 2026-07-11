@@ -222,6 +222,17 @@ function New-JsonOverlay {
     return $overlay | ConvertTo-Json -Depth 10
 }
 
+# Strip // line comments (JSONC), mirroring init.sh's json_sanitize. The regex
+# keeps whole strings ($1) so a // inside a value (https://) survives; JSON
+# strings never span lines, so a per-line scan suffices.
+function ConvertFrom-Jsonc {
+    param([string]$Path)
+
+    $stripped = Get-Content $Path |
+        ForEach-Object { $_ -replace '("(?:[^"\\]|\\.)*")|//.*', '$1' }
+    return ($stripped -join "`n" | ConvertFrom-Json)
+}
+
 # Merge JSON files
 function Merge-JsonFiles {
     param(
@@ -229,7 +240,7 @@ function Merge-JsonFiles {
         [string]$OverlayContent
     )
 
-    $base = Get-Content $BaseFile | ConvertFrom-Json
+    $base = ConvertFrom-Jsonc $BaseFile
     $overlay = $OverlayContent | ConvertFrom-Json
 
     # Simple merge - overlay wins
