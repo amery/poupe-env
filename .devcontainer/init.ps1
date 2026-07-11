@@ -183,10 +183,11 @@ Rename-IfDifferent $T $F
 
 # Generate JSON overlay
 function New-JsonOverlay {
-    # Note: VSCode variables will be resolved at runtime
-    # Translate Windows paths to container paths
-    
-    # Translate paths
+    # On Windows the ${localWorkspaceFolder} / ${localEnv:HOME} tokens that
+    # init.sh emits resolve to host paths (C:\...) invalid inside the
+    # container, so container-side paths are baked in concretely while mount
+    # sources stay as tokens. The output therefore differs from the Linux one
+    # in path values, by design.
     $containerHome = ConvertTo-ContainerPath $env:USERPROFILE
     $workspaceFolder = ConvertTo-ContainerPath $PWD.Path
     
@@ -233,7 +234,55 @@ function ConvertFrom-Jsonc {
     return ($stripped -join "`n" | ConvertFrom-Json)
 }
 
-# Merge JSON files
+# Recursive merge matching jq's `.[0] * .[1]` (init.sh's json_merge): objects
+# merge by key; anything else takes the overlay (so arrays replace rather than
+# concatenate).
+function Merge-JsonValue {
+    param($Base, $Overlay)
+
+    if ($Base    -isnot [System.Management.Automation.PSCustomObject] -or
+        $Overlay -isnot [System.Management.Automation.PSCustomObject]) {
+        # comma stops the return enumerating a single-element array, which
+        # would collapse mounts:[x] to mounts:x
+        return ,$Overlay
+    }
+
+    $out = [ordered]@{}
+    foreach ($p in $Base.PSObject.Properties) { $out[$p.Name] = $p.Value }
+    foreach ($p in $Overlay.PSObject.Properties) {
+        if ($out.Contains($p.Name)) {
+            $out[$p.Name] = Merge-JsonValue $out[$p.Name] $p.Value
+        } else {
+            $out[$p.Name] = $p.Value
+        }
+    }
+    return [PSCustomObject]$out
+}
+
+# Match init.sh's `jq --indent 2`: PowerShell 5.1's ConvertTo-Json uses
+# four-space indents and sometimes a double-space colon, churning the tracked
+# file on every run. The indent unit is detected, so PS7 (already two-space) is
+# left alone.
+function Format-Json {
+    param([string]$Json)
+
+    $lines = $Json -split "\r?\n"
+
+    $unit = 0
+    foreach ($l in $lines) {
+        if ($l -match '^( +)\S') { $unit = $matches[1].Length; break }
+    }
+
+    $out = foreach ($l in $lines) {
+        if ($unit -gt 0 -and $l -match '^( +)(.*)$') {
+            $l = (' ' * ($matches[1].Length / $unit * 2)) + $matches[2]
+        }
+        $l -replace '^(\s*"(?:[^"\\]|\\.)*":)\s+', '$1 '
+    }
+
+    return ($out -join "`n")
+}
+
 function Merge-JsonFiles {
     param(
         [string]$BaseFile,
@@ -243,12 +292,8 @@ function Merge-JsonFiles {
     $base = ConvertFrom-Jsonc $BaseFile
     $overlay = $OverlayContent | ConvertFrom-Json
 
-    # Simple merge - overlay wins
-    foreach ($key in $overlay.PSObject.Properties.Name) {
-        $base.$key = $overlay.$key
-    }
-
-    return $base | ConvertTo-Json -Depth 10
+    $merged = Merge-JsonValue $base $overlay | ConvertTo-Json -Depth 10
+    return (Format-Json $merged)
 }
 
 # Update devcontainer.json
