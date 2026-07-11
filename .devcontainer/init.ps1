@@ -52,6 +52,24 @@ function Rename-IfDifferent {
     }
 }
 
+# Write $Content as UTF-8 without a BOM and with a single trailing newline,
+# matching init.sh's heredoc, `jq` and `echo` output. Windows PowerShell 5.1's
+# `Out-File -Encoding UTF8` prepends a BOM to every generated file — which can
+# break Docker's parse of the Dockerfile's leading `# syntax=` / `FROM` line and
+# corrupts the JSON — whereas .NET's UTF8Encoding($false) never does.
+# Set-Location does not move .NET's working directory, so the path — relative or
+# absolute — is resolved against the PowerShell location first.
+function Write-TextFile {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+
+    $full = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($full, $Content + "`n", $utf8NoBom)
+}
+
 # Dockerfile generation
 $DOCKERFILE = "docker/Dockerfile"
 
@@ -160,7 +178,7 @@ $FROM = Get-BaseImage $DOCKERFILE
 Initialize-Image $FROM
 $F = "$B/Dockerfile"
 $T = "$F.tmp"
-New-Dockerfile $FROM | Out-File -Encoding UTF8 -NoNewline $T
+Write-TextFile $T (New-Dockerfile $FROM)
 Rename-IfDifferent $T $F
 
 # Generate JSON overlay
@@ -234,7 +252,7 @@ if (-not (Test-Path $F) -and (Test-Path $TEMPLATE)) {
 $T = "$F.tmp"
 $overlayJson = New-JsonOverlay
 $mergedJson = Merge-JsonFiles $F $overlayJson
-$mergedJson | Out-File -Encoding UTF8 -NoNewline $T
+Write-TextFile $T $mergedJson
 Rename-IfDifferent $T $F
 
 # Create mount points
@@ -266,7 +284,7 @@ New-Item -ItemType Directory -Force -Path "$C$containerHome" | Out-Null
 
     if ($_.Host -match '\.json$') {
         if (-not (Test-Path $_.Host) -or (Get-Item $_.Host).Length -eq 0) {
-            '{}' | Out-File -Encoding UTF8 -NoNewline $_.Host
+            Write-TextFile $_.Host '{}'
         }
     } else {
         New-Item -ItemType File -Force -Path $_.Host | Out-Null
