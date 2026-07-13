@@ -251,7 +251,10 @@ function Merge-JsonValue {
         return ,$Overlay
     }
 
-    $out = [ordered]@{}
+    # An ordinal (case-sensitive) comparer keeps keys differing only in case
+    # distinct, as jq's `*` does; a plain [ordered]@{} is case-insensitive and
+    # would fold them on insertion.
+    $out = New-Object System.Collections.Specialized.OrderedDictionary ([System.StringComparer]::Ordinal)
     foreach ($p in $Base.PSObject.Properties) { $out[$p.Name] = $p.Value }
     foreach ($p in $Overlay.PSObject.Properties) {
         if ($out.Contains($p.Name)) {
@@ -260,7 +263,11 @@ function Merge-JsonValue {
             $out[$p.Name] = $p.Value
         }
     }
-    return [PSCustomObject]$out
+    # Return the dictionary raw: casting through [PSCustomObject] re-folds the
+    # case-distinct keys the ordinal comparer just preserved. ConvertTo-Json
+    # serialises the dictionary whole (dictionaries are not pipeline-enumerated,
+    # so no comma guard is needed here).
+    return $out
 }
 
 # Match init.sh's `jq --indent 2`: PowerShell 5.1's ConvertTo-Json uses
