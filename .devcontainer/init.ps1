@@ -191,8 +191,12 @@ function New-JsonOverlay {
     $containerHome = ConvertTo-ContainerPath $env:USERPROFILE
     $workspaceFolder = ConvertTo-ContainerPath $PWD.Path
     
-    $overlay = @{
-        containerEnv = @{
+    # [ordered] on every hashtable so ConvertTo-Json emits keys in init.sh's
+    # fixed order (containerEnv, workspaceMount, workspaceFolder, mounts; each
+    # mount source, target, type) — a plain @{} iterates in hash order and would
+    # churn the merged file's key order run to run.
+    $overlay = [ordered]@{
+        containerEnv = [ordered]@{
             GOPATH = $workspaceFolder
             WS = $workspaceFolder
             CURDIR = $workspaceFolder
@@ -200,7 +204,7 @@ function New-JsonOverlay {
         workspaceMount = 'source=${localWorkspaceFolder},target=' + $workspaceFolder + ',type=bind,consistency=cached'
         workspaceFolder = $workspaceFolder
         mounts = @(
-            @{
+            [ordered]@{
                 # The sandboxed-home source cannot use the ${localEnv:USERPROFILE}
                 # token: it resolves to C:\Users\... and would embed a drive
                 # colon mid-path. Bake the translated container path instead.
@@ -208,12 +212,12 @@ function New-JsonOverlay {
                 target = $containerHome
                 type = 'bind'
             },
-            @{
+            [ordered]@{
                 source = '${localEnv:USERPROFILE}/.claude'
                 target = "$containerHome/.claude"
                 type = 'bind'
             },
-            @{
+            [ordered]@{
                 source = '${localEnv:USERPROFILE}/.claude.json'
                 target = "$containerHome/.claude.json"
                 type = 'bind'
@@ -303,6 +307,12 @@ $TEMPLATE = "$B/devcontainer.json.template"
 # Use template if devcontainer.json doesn't exist
 if (-not (Test-Path $F) -and (Test-Path $TEMPLATE)) {
     Copy-Item $TEMPLATE $F
+}
+
+# devcontainer.json must exist (from version control or the template above),
+# mirroring init.sh's `[ -s "$F" ] || die`.
+if (-not (Test-Path $F) -or (Get-Item $F).Length -eq 0) {
+    Stop-WithError "devcontainer.json not found or empty."
 }
 
 $T = "$F.tmp"
