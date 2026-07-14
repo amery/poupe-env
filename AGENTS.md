@@ -157,6 +157,18 @@ For workflows that drive a host-side tool from inside the container
 (e.g. `chrome-devtools-mcp` tunnelling to a visible Chrome on the
 host), use this alias.
 
+#### Local LLM access (Ollama)
+
+The image bakes `/etc/profile.d/ollama.sh` (see `docker/Dockerfile`), so
+login shells point CLI clients — Ollama's own client and srclight's
+embedding backend — at a host Ollama daemon on
+`host.docker.internal:11434`. It is a silent no-op when the alias does
+not resolve or the variables are already set. Like the SSH path, it
+relies on the host daemon being reachable over `docker0`: Ollama
+listening on the bridge (or all interfaces) and the host firewall
+permitting `docker0` → port 11434. The variables set are listed under
+[Environment Variables](./README.md#environment-variables) in README.md.
+
 #### Host-side prerequisites
 
 - **`sshd` must listen on the bridge interface** for SSH-from-container
@@ -223,11 +235,18 @@ entry point that detects the OS and runs platform-specific scripts:
 - **Where**: Runs on the host machine (not in container)
 - **Entry**: `node .devcontainer/init.js` detects OS and runs appropriate
   script
-- **Requirements**: Node.js (for init.js) and Docker access to inspect base
-  image metadata
+- **Requirements**: Node.js (for init.js) and Docker access. The base
+  image metadata is read via `docker inspect`; the first run pulls the
+  image if it is not present locally, so network access is needed once
 
 Key functions in platform scripts:
 
+- `get_base_image`: Parses the last `FROM` line from `docker/Dockerfile`
+- `may_pull_image`: Pulls the base image when it is not present locally
+  (`docker inspect` only sees local images), so its metadata label is
+  readable instead of silently lost; fails loudly if the pull fails
+- `get_metadata` / `metadata`: Read the base image's metadata label and
+  append the `containerUser` entry
 - `gen_dockerfile`: Extends base Dockerfile with user metadata
   - Uses `containerUser` in metadata label (not `remoteUser`)
   - Removes verbose shell execution (`sh` instead of `sh -x`)
@@ -256,7 +275,8 @@ Key functions in platform scripts:
 
 3. **Dockerfile Generation**:
    - Reads `docker/Dockerfile` as the base
-   - Extracts metadata from base image using Docker inspect
+   - Resolves the base image from the last `FROM` line, pulling it if not
+     present locally, then reads its metadata with `docker inspect`
    - Appends user-specific configuration:
      - Runs `/devcontainer-init.sh` with username and home path
      - Sets container user to match host user

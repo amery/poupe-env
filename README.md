@@ -113,6 +113,8 @@ process:
   integration
 - Handles path translation on Windows (e.g. `C:\Users\john` →
   `/c/Users/john`)
+- Pulls the base image on first run (if not already present) to read its
+  metadata
 - Generates a custom Dockerfile with user-specific metadata
 
 ## Project Structure
@@ -311,6 +313,20 @@ The container sets these environment variables:
 - `WS`: Workspace root path
 - `CURDIR`: Current working directory at invocation
 - `GOPATH`: Go path (set to workspace for Go projects)
+
+Login shells additionally point CLI clients at a host Ollama daemon, when
+`host.docker.internal` resolves (a silent no-op otherwise):
+
+- `OLLAMA_HOST`: `host.docker.internal:11434`, unless already set
+- `OPENAI_BASE_URL`, `OPENAI_API_KEY`: srclight's embedding client has no
+  Ollama override, so it rides Ollama's OpenAI-compatible API
+- `SRCLIGHT_EMBED_REQUEST_TIMEOUT`: raised for slow local embedding
+
+The OpenAI block is skipped when `OPENAI_BASE_URL` is already set, so a real
+OpenAI endpoint configured earlier still wins. These come from the baked
+`/etc/profile.d/ollama.sh` (see `docker/Dockerfile`), not the entrypoint, so
+they apply to login shells in both modes. For the host-side reachability
+requirements, see [AGENTS.md](./AGENTS.md#host-access-from-the-container).
 
 ## Troubleshooting
 

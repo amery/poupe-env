@@ -27,6 +27,8 @@ and Windows through platform-specific initialization scripts.
    - On Windows: Executes `init.ps1` using PowerShell
    - On Unix/Linux/macOS: Executes `init.sh`
 3. The initialization script:
+   - Pulls the base image if it is not present locally, then reads its
+     metadata
    - Generates a customized Dockerfile based on your user settings
    - Merges platform-specific mount paths into devcontainer.json
      (preserving user customizations)
