@@ -3,18 +3,18 @@
 Technical implementation details for AI agents and developers working with
 this codebase. For general setup instructions, see [README.md](./README.md).
 
-**IMPORTANT**: When making changes to the DevContainer setup, initialization
+**IMPORTANT**: When making changes to the DevContainer setup, initialisation
 process, or mount configuration, you MUST update both AGENTS.md and README.md
 to reflect the changes before committing. This ensures documentation stays
-accurate and synchronized.
+accurate and synchronised.
 
 ## Quick Reference
 
 - **Container Home**: `.docker-run-cache/${HOME}`
-- **Config Mounts**: `.claude/` and `.claude.json` from host
+- **Config Mounts**: `~/.claude/` and `~/.claude.json` from host
 - **Init Script**: `.devcontainer/init.sh` (runs on host before container)
 - **Key Files**: `devcontainer.json`, `docker/Dockerfile`, `run.sh`
-- **Base Image**: `amery/docker-builder` (Ubuntu + VS Code + Go + Node.js)
+- **Base Image**: `docker-apptly-builder` (Ubuntu + VS Code + Go + Node.js)
 - **Execution Modes**: DevContainer (long-lived) and `x` (per-command)
 - **Trampoline**: `x` → `run.sh` → docker-builder-run → container
 - **Passthrough**: `run.sh` detects `/.dockerenv` and skips docker
@@ -104,8 +104,8 @@ The devcontainer selectively shares resources between host and container:
 1. **Workspace**: Mounted at the same path as on host for consistency
 2. **Sandboxed Home**: Container home at `.docker-run-cache/${HOME}`
 3. **Tool Configs**: Specific directories bind-mounted from host:
-   - `.claude` directory for Claude AI configuration persistence
-   - `.claude.json` for Claude AI state persistence
+   - `~/.claude` directory for Claude AI configuration persistence
+   - `~/.claude.json` for Claude AI state persistence
 4. **GPG Agent Socket**: Conditionally bind-mounted from host for
    commit signing:
    - Socket directory at `$XDG_RUNTIME_DIR/gnupg` (falls back to
@@ -117,15 +117,14 @@ The devcontainer selectively shares resources between host and container:
 
 Both execution modes provide these tool config and GPG socket
 mounts — the DevContainer via devcontainer.json, and CLI mode via
-`run.sh` environment variables (`DOCKER_RUN_VOLUMES`,
-`DOCKER_EXTRA_OPTS`). This ensures AI assistants and signing
-tools have consistent access to their configuration regardless
-of how the container is launched.
+`run.sh`. This ensures AI assistants and signing tools have
+consistent access to their configuration regardless of how the
+container is launched.
 
 ### Host Access from the Container
 
-Both `runArgs` (devcontainer.json) and `DOCKER_EXTRA_OPTS` (run.sh)
-include `--add-host=host.docker.internal:host-gateway`. Docker
+Both execution modes add `--add-host=host.docker.internal:host-gateway`
+— the DevContainer via devcontainer.json, CLI mode via `run.sh`. Docker
 resolves the `host-gateway` sentinel at container start and writes
 the bridge gateway IP into `/etc/hosts`, so containers reach the
 host as `host.docker.internal` regardless of the bridge's IP. This
@@ -201,9 +200,9 @@ ssh -o BatchMode=yes -o ConnectTimeout=5 host.docker.internal true
 path reached `sshd`; only auth remains (mount `~/.ssh` or forward
 the agent via `$SSH_AUTH_SOCK`).
 
-## How Initialization Works
+## How Initialisation Works
 
-The initialization provides cross-platform flexibility through a Node.js
+The initialisation provides cross-platform flexibility through a Node.js
 entry point that detects the OS and runs platform-specific scripts:
 
 ### Execution Context
@@ -264,7 +263,7 @@ Key functions in platform scripts:
      - Windows: Translates paths (see Windows-specific section)
 
 4. **JSON Configuration Merge**:
-   - **Step 1**: Sanitize existing `devcontainer.json` (remove comments)
+   - **Step 1**: Sanitise existing `devcontainer.json` (remove comments)
    - **Step 2**: Generate overlay with mount configurations
    - **Step 3**: Merge overlay with existing config (overlay wins)
    - **Step 4**: Write result with 2-space indentation
@@ -278,18 +277,18 @@ Key functions in platform scripts:
      becomes `.docker-run-cache/home/username`
    - Creates host-bound directories in both locations:
      - `$PWD` (current directory)
-     - `$HOME/.claude` (AI config directory) or `$USERPROFILE/.claude` on
-       Windows
+     - `~/.claude` (AI config directory; `$USERPROFILE/.claude` on
+       Windows)
    - Handles host-bound files:
-     - `.claude.json`: Touched in cache, initialized with `{}` on host if
-       empty
+     - `~/.claude.json`: touched in cache, initialised with `{}` on host
+       if empty
    - Uses case pattern to handle JSON files specially
 
 ### Platform-Specific Details
 
 #### Windows (init.ps1)
 
-- **Username Sanitization**: Windows usernames may contain spaces or special
+- **Username Sanitisation**: Windows usernames may contain spaces or special
   characters
   - Replaces invalid characters with underscores
   - Prepends underscore if starting with number
@@ -333,13 +332,13 @@ Key functions in platform scripts:
               │                     │
               └──────────┬──────────┘
                          ↓
-docker/Dockerfile → generate_dockerfile → .devcontainer/Dockerfile
+docker/Dockerfile → gen_dockerfile → .devcontainer/Dockerfile
                          ↓
                   (adds user metadata)
 
-devcontainer.json → sanitize → clean JSON
+devcontainer.json → json_sanitize → clean JSON
                          ↓
-generate_overlay → mount config → merge → updated devcontainer.json
+gen_json_overlay → mount config → json_merge → updated devcontainer.json
                          ↓
                  (platform-specific paths)
 ```
@@ -452,7 +451,7 @@ x pwd  # Should match current directory, not /
 
 ### Submodule Management
 
-This project uses Git submodules. Proper initialization is critical:
+This project uses Git submodules. Proper initialisation is critical:
 
 1. **Recursive Clone (Recommended)**:
 
@@ -478,13 +477,13 @@ This project uses Git submodules. Proper initialization is critical:
    git submodule status
    ```
 
-**IMPORTANT**: Submodules MUST be initialized before creating the
+**IMPORTANT**: Submodules MUST be initialised before creating the
 DevContainer. The container build will fail if submodules are missing.
 
 ### First Time Setup
 
 1. Clone the repository with submodules (see above)
-2. `initializeCommand` in devcontainer.json runs init.sh automatically
+2. `initializeCommand` in devcontainer.json runs init.js automatically
 3. VS Code will build and start the DevContainer
 
 ## Code Quality Standards
