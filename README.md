@@ -39,13 +39,21 @@ details on available base images and the build infrastructure, see the
 
 ### Prerequisites
 
-- Docker installed and running
-  - **Windows**: Docker Desktop with WSL 2 backend recommended
+- **Docker**, installed and running
+  - **Windows**: Docker Desktop with the WSL 2 backend (WSL 2 itself
+    must be installed and enabled)
   - **macOS**: Docker Desktop
   - **Linux**: Docker Engine
-- Visual Studio Code with "Dev Containers" extension
-- Git
-- Node.js (for cross-platform initialization)
+- **Visual Studio Code** with the **Dev Containers** extension
+- **Git** on your `PATH`
+  - **Windows**: install [Git for Windows](https://git-scm.com/download/win).
+    GitHub Desktop's bundled git is not sufficient — the init scripts
+    and submodule commands expect a full git on `PATH`.
+- **Node.js** on your `PATH`. VS Code's `initializeCommand` runs
+  `node .devcontainer/init.js` on the host before building the container,
+  so a standalone Node.js is required.
+  - The runtime bundled inside VS Code (Electron) does not count: it is
+    not exposed as a `node` command on `PATH`.
 
 ### Setup
 

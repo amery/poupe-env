@@ -81,14 +81,24 @@ function Get-BaseImage {
 }
 
 # docker inspect only sees local images; pull on first run so the base
-# image's metadata label is readable instead of silently lost.
+# image's metadata label is readable instead of silently lost. Mirrors
+# init.sh's may_pull_image.
 function Initialize-Image {
     param([string]$FROM)
+
+    # The top-level $ErrorActionPreference = "Stop" promotes a native command's
+    # stderr into a terminating error under Windows PowerShell 5.1, so the
+    # missing-image `docker image inspect` (and `docker pull`'s own progress on
+    # stderr) would abort the script before its exit code could be read. Relax
+    # the preference for these native calls and branch on the exit code, as the
+    # shell's `image inspect >/dev/null 2>&1 || pull` does. The assignment is
+    # function-local, so it reverts on return.
+    $ErrorActionPreference = "Continue"
 
     & docker image inspect $FROM 2>$null | Out-Null
     if ($LASTEXITCODE -eq 0) { return }
 
-    & docker pull $FROM
+    & docker pull $FROM 2>&1
     if ($LASTEXITCODE -ne 0) {
         Stop-WithError "could not pull $FROM"
     }
