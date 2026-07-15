@@ -57,13 +57,16 @@ else
 	export DOCKER_DIR="${ME%/*}"
 	export DOCKER_RUN_WS="${DOCKER_DIR%/*}"
 
-	# bind-mount Claude configuration
+	# bind-mount Claude configuration. docker-builder-run reads a bare
+	# name off DOCKER_RUN_VOLUMES as a variable to resolve, so pass the
+	# directory as CLAUDE_CONFIG_DIR; a leading ! marks .claude.json as a
+	# literal file path, mounted as a file with its sandbox mount point
+	# pre-created (needs docker-builder-run 1.23).
 	export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 	mkdir -p "$CLAUDE_CONFIG_DIR"
 	[ -s "$HOME/.claude.json" ] || echo '{}' > "$HOME/.claude.json"
 
-	export DOCKER_RUN_VOLUMES="${DOCKER_RUN_VOLUMES:+$DOCKER_RUN_VOLUMES }CLAUDE_CONFIG_DIR"
-	export DOCKER_EXTRA_OPTS="${DOCKER_EXTRA_OPTS:+$DOCKER_EXTRA_OPTS }-v '$HOME/.claude.json:$HOME/.claude.json'"
+	export DOCKER_RUN_VOLUMES="${DOCKER_RUN_VOLUMES:+$DOCKER_RUN_VOLUMES }CLAUDE_CONFIG_DIR !$HOME/.claude.json"
 
 	# forward GPG agent socket for commit signing
 	GPG_SOCK_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gnupg"
