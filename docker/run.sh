@@ -2,16 +2,16 @@
 
 set -eu
 
-# run.sh relies on docker-builder-run behaviour introduced in v1.24;
+# run.sh relies on docker-builder-run behaviour introduced in v1.23;
 # refuse to trampoline through an older release that lacks it. The
-# minimum is stored pre-encoded: 102400 is ver_to_num's rendering of
-# 1.24 (major*100000 + minor*100 + patch).
-RUN_MIN_VERSION=102400
+# minimum is stored pre-encoded: 102300 is ver_to_num's rendering of
+# 1.23 (major*100000 + minor*100 + patch).
+RUN_MIN_VERSION=102300
 
 # ver_to_num <major.minor.patch>
 # Fold a dotted version into one comparable integer,
-# major*100000 + minor*100 + patch, so "1.24" and "1.24.0" both become
-# 102400. A missing minor or patch counts as 0; minor spans 0-999 and
+# major*100000 + minor*100 + patch, so "1.23" and "1.23.0" both become
+# 102300. A missing minor or patch counts as 0; minor spans 0-999 and
 # patch 0-99 before they would carry into the next field.
 ver_to_num() {
 	oldifs=$IFS
@@ -37,7 +37,7 @@ require_run_version() {
 	fi
 
 	if [ "$(ver_to_num "$ver")" -lt "$2" ]; then
-		echo "docker-builder-run $ver is too old, need >= 1.24" >&2
+		echo "docker-builder-run $ver is too old, need >= 1.23" >&2
 		return 1
 	fi
 }
