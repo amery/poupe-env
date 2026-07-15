@@ -239,7 +239,8 @@ function New-JsonOverlay {
 
 # Strip // line comments (JSONC), mirroring init.sh's json_sanitize. The regex
 # keeps whole strings ($1) so a // inside a value (https://) survives; JSON
-# strings never span lines, so a per-line scan suffices.
+# strings never span lines, so a per-line scan suffices. Only // line comments
+# are handled — /* */ block comments are not.
 function ConvertFrom-Jsonc {
     param([string]$Path)
 
@@ -319,15 +320,9 @@ function Merge-JsonFiles {
 
 # Update devcontainer.json
 $F = "$B/devcontainer.json"
-$TEMPLATE = "$B/devcontainer.json.template"
 
-# Use template if devcontainer.json doesn't exist
-if (-not (Test-Path $F) -and (Test-Path $TEMPLATE)) {
-    Copy-Item $TEMPLATE $F
-}
-
-# devcontainer.json must exist (from version control or the template above),
-# mirroring init.sh's `[ -s "$F" ] || die`.
+# devcontainer.json must exist in version control, mirroring init.sh's
+# `[ -s "$F" ] || die`.
 if (-not (Test-Path $F) -or (Get-Item $F).Length -eq 0) {
     Stop-WithError "devcontainer.json not found or empty."
 }

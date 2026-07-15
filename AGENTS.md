@@ -296,7 +296,7 @@ Key functions in platform scripts:
 - **Path Translation**: Converts Windows paths to container paths
   - Detects Docker backend (WSL vs Docker Desktop)
   - WSL format: `C:\Users\john` → `/mnt/c/users/john`
-  - Docker Desktop: `C:\Users\john` → `/c/Users/john`
+  - Docker Desktop: `C:\Users\john` → `/C/Users/john`
   - Applied to both workspace and home directories
 - **Environment Variables**:
   - Uses `$env:USERNAME` and `$env:USERPROFILE`
@@ -449,40 +449,9 @@ x pwd  # Should match current directory, not /
 
 ## Development Workflow
 
-### Submodule Management
-
-This project uses Git submodules. Proper initialisation is critical:
-
-1. **Recursive Clone (Recommended)**:
-
-   ```bash
-   git clone --recursive <repository-url>
-   cd dev-env
-   ```
-
-2. **If You Forgot --recursive**:
-
-   ```bash
-   # From within the cloned repository
-   git submodule update --init --recursive
-   ```
-
-3. **Updating Submodules**:
-
-   ```bash
-   # Update to latest commits
-   git submodule update --remote --merge
-
-   # Check submodule status
-   git submodule status
-   ```
-
-**IMPORTANT**: Submodules MUST be initialised before creating the
-DevContainer. The container build will fail if submodules are missing.
-
 ### First Time Setup
 
-1. Clone the repository with submodules (see above)
+1. Clone the repository
 2. `initializeCommand` in devcontainer.json runs init.js automatically
 3. VS Code will build and start the DevContainer
 

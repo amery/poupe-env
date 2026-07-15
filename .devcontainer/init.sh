@@ -229,7 +229,8 @@ EOT
 # Strip // line comments (JSONC) and validate. A // inside a string value (e.g.
 # an https:// URL) is preserved: awk walks each line tracking whether it is
 # inside a string and only cuts a // that begins outside one. JSON strings never
-# span lines, so per-line scanning suffices.
+# span lines, so per-line scanning suffices. Only // line comments are
+# handled; /* */ block comments are not.
 json_sanitize() {
 	awk '
 	{
