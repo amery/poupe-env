@@ -81,14 +81,24 @@ function Get-BaseImage {
 }
 
 # docker inspect only sees local images; pull on first run so the base
-# image's metadata label is readable instead of silently lost.
+# image's metadata label is readable instead of silently lost. Mirrors
+# init.sh's may_pull_image.
 function Initialize-Image {
     param([string]$FROM)
+
+    # The top-level $ErrorActionPreference = "Stop" promotes a native command's
+    # stderr into a terminating error under Windows PowerShell 5.1, so the
+    # missing-image `docker image inspect` (and `docker pull`'s own progress on
+    # stderr) would abort the script before its exit code could be read. Relax
+    # the preference for these native calls and branch on the exit code, as the
+    # shell's `image inspect >/dev/null 2>&1 || pull` does. The assignment is
+    # function-local, so it reverts on return.
+    $ErrorActionPreference = "Continue"
 
     & docker image inspect $FROM 2>$null | Out-Null
     if ($LASTEXITCODE -eq 0) { return }
 
-    & docker pull $FROM
+    & docker pull $FROM 2>&1
     if ($LASTEXITCODE -ne 0) {
         Stop-WithError "could not pull $FROM"
     }
@@ -229,7 +239,8 @@ function New-JsonOverlay {
 
 # Strip // line comments (JSONC), mirroring init.sh's json_sanitize. The regex
 # keeps whole strings ($1) so a // inside a value (https://) survives; JSON
-# strings never span lines, so a per-line scan suffices.
+# strings never span lines, so a per-line scan suffices. Only // line comments
+# are handled — /* */ block comments are not.
 function ConvertFrom-Jsonc {
     param([string]$Path)
 
@@ -309,15 +320,9 @@ function Merge-JsonFiles {
 
 # Update devcontainer.json
 $F = "$B/devcontainer.json"
-$TEMPLATE = "$B/devcontainer.json.template"
 
-# Use template if devcontainer.json doesn't exist
-if (-not (Test-Path $F) -and (Test-Path $TEMPLATE)) {
-    Copy-Item $TEMPLATE $F
-}
-
-# devcontainer.json must exist (from version control or the template above),
-# mirroring init.sh's `[ -s "$F" ] || die`.
+# devcontainer.json must exist in version control, mirroring init.sh's
+# `[ -s "$F" ] || die`.
 if (-not (Test-Path $F) -or (Get-Item $F).Length -eq 0) {
     Stop-WithError "devcontainer.json not found or empty."
 }
