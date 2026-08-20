@@ -128,20 +128,102 @@ The devcontainer selectively shares resources between host and container:
 3. **Tool Configs**: Specific directories bind-mounted from host:
    - `~/.claude` directory for Claude AI configuration persistence
    - `~/.claude.json` for Claude AI state persistence
-4. **GPG Agent Socket**: Conditionally bind-mounted from host for
-   commit signing:
+4. **GPG Agent Socket**: CLI mode only — see
+   [GPG Agent Forwarding](#gpg-agent-forwarding) for why the
+   DevContainer does not mount it:
    - Socket directory at `$XDG_RUNTIME_DIR/gnupg` (falls back to
-     `/run/user/$(id -u)/gnupg`)
+     `/run/user/$(id -u)/gnupg`), bind-mounted by `docker/run.sh`
    - Only mounted when the directory exists on the host
    - Enables GPG signing inside the container using the host's
-     gpg-agent (runs in restricted mode across namespaces)
+     gpg-agent
    - Container needs public keys imported (`gpg --import ~/.gnupg/*.asc`)
 
-Both execution modes provide these tool config and GPG socket
-mounts — the DevContainer via devcontainer.json, and CLI mode via
-`run.sh`. This ensures AI assistants and signing tools have
-consistent access to their configuration regardless of how the
-container is launched.
+Both execution modes provide the tool config mounts — the DevContainer
+via devcontainer.json, and CLI mode via `run.sh`. This ensures AI
+assistants have consistent access to their configuration regardless of
+how the container is launched. The GPG socket is the exception: in the
+DevContainer, VS Code forwards the agent itself.
+
+### GPG Agent Forwarding
+
+The two execution modes reach the host's gpg-agent by different routes,
+and they must not both try.
+
+**CLI mode** has no VS Code, so `docker/run.sh` bind-mounts the host's
+`$XDG_RUNTIME_DIR/gnupg` directory into the container at the same path.
+The base image sets `no-autostart` in `/etc/gnupg/common.conf`, so a gpg
+call inside the container cannot autostart a local agent and displace
+the forwarded socket. Note the trust boundary this leaves: the mount is
+the whole directory, so the container holds the **unrestricted**
+`S.gpg-agent` and can issue commands the `.extra` socket would refuse,
+`KILLAGENT` among them. Nothing in these images does, but a container
+here is trusted with the host's agent, not sandboxed from it.
+
+**DevContainer mode** leaves that directory unmounted by default,
+because VS Code already forwards the agent and does it more safely. The
+Dev Containers extension reads `gpgconf --list-dirs` on both sides, then
+relays the host's **restricted** `S.gpg-agent.extra` socket to whatever
+the container's own `agent-socket` path is — the arrangement the
+[GnuPG wiki][gnupg-agent-forwarding] prescribes for forwarding, since
+the restricted socket refuses privileged commands such as `KILLAGENT`.
+
+Mounting the host directory as well breaks this. It makes the
+container's `agent-socket` path resolve to the host's live socket
+inode, and the extension's relay begins by unlinking the socket it is
+about to listen on:
+
+```js
+if (!(await lstat(e)).isSocket()) return;
+await unlink(e)
+… createServer(…).listen(e)
+```
+
+The host's socket disappears, gpg-agent — which watches it with
+inotify — logs `socket file has been removed - shutting down` and
+exits. The symptom is a host agent that dies whenever a DevContainer
+starts, with no gpg-agent running in the container to blame, since the
+process listening there is the extension's Node relay. The same
+mechanism one level up is [vscode-remote-release#3221][vsc-3221]; the
+guard added for it only skips forwarding when the container has private
+keys in `~/.gnupg/private-keys-v1.d`, which does not cover a mounted
+socket directory.
+
+#### `DEV_ENV_GPG_MOUNT`
+
+The [devcontainer CLI][devcontainer-cli] carries none of the extension's
+forwarding logic, so a container brought up with `devcontainer up` has
+no agent at all. Setting `DEV_ENV_GPG_MOUNT` restores the mount for that
+case:
+
+```sh
+DEV_ENV_GPG_MOUNT=1 devcontainer up --workspace-folder .
+```
+
+It is opt-in rather than automatic because the driver cannot be
+identified reliably. The CLI passes its environment through verbatim and
+adds no marker of its own, and the spec has no notion of client
+identity, so there is nothing to test for.
+
+`init.sh` does use one signal, but only to **refuse**. The extension
+spawns its bundled CLI through the Code binary with
+`ELECTRON_RUN_AS_NODE=1`, and VS Code strips `ELECTRON_*` from
+integrated-terminal environments — so that variable distinguishes the
+extension from a `devcontainer up` typed into VS Code's own terminal,
+where a blanket `VSCODE_*` test would not (`VSCODE_IPC_HOOK_CLI` and
+`VSCODE_GIT_ASKPASS_*` survive sanitisation). When both it and
+`DEV_ENV_GPG_MOUNT` are set, the mount is skipped with a warning.
+
+The signal is undocumented and goes blind when the extension drives a
+Remote-SSH or WSL window, where the remote CLI inherits a plain login
+shell. That is why it vetoes rather than decides: a blind veto costs a
+missing warning to someone who opted in by hand, whereas a blind
+*enabler* would silently restore the bug above.
+
+`init.ps1` implements no part of this — the default (no mount) is the
+same on Windows, but the opt-in is not offered there. Windows gpg-agent
+does not expose a Unix socket to bind-mount, so forwarding it into a
+Linux container is a different problem, not a missing translation of
+this one.
 
 ### Host Access from the Container
 
@@ -253,7 +335,6 @@ Key functions in platform scripts:
   - Sandboxed home directory mount
   - Claude directory bind mount
   - Claude JSON file bind mount
-  - GPG agent socket bind mount (conditional)
 - `json_sanitize`: Strips comments from JSONC files with validation
 - `json_merge`: Merges JSON configurations with 2-space formatting
 - `rename`: Atomic file updates to avoid race conditions
@@ -370,8 +451,8 @@ gen_json_overlay → mount config → json_merge → updated devcontainer.json
 The `x` helper provides workspace-aware command execution via the
 `docker-builder-run` trampoline pattern. Both `x` and
 `docker-builder-run` are published as release assets by
-[docker-builder][docker-builder-releases]; see [README.md](./README.md#installation)
-for the install snippet.
+[docker-builder][docker-builder-releases]; see
+[README.md](./README.md#installation) for the install snippet.
 
 ### Workspace Detection Algorithm
 
@@ -537,3 +618,6 @@ For docker-builder implementation details, see the
 [docker-builder-agent]: https://github.com/amery/docker-builder/blob/master/AGENTS.md
 [docker-builder-releases]: https://github.com/amery/docker-builder/releases/latest
 [playwright-mcp]: https://github.com/microsoft/playwright-mcp
+[gnupg-agent-forwarding]: https://wiki.gnupg.org/AgentForwarding
+[vsc-3221]: https://github.com/microsoft/vscode-remote-release/issues/3221
+[devcontainer-cli]: https://github.com/devcontainers/cli
