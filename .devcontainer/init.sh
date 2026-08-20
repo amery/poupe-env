@@ -18,6 +18,14 @@ die() {
 	exit 1
 }
 
+warn() {
+	if [ $# -eq 0 ]; then
+		cat
+	else
+		echo "$*"
+	fi | sed -e 's|^|W:|g' >&2
+}
+
 # Detect OS type
 detect_os() {
 	case "$(uname -s)" in
@@ -187,18 +195,68 @@ readonly WS_ENV='${localWorkspaceFolder}'
 # shellcheck disable=SC2016
 readonly HOME_ENV='${localEnv:HOME}'
 
-gen_json_overlay() {
-	# GPG agent socket forwarding
-	local gpg_mount=""
-	local gpg_sock_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gnupg"
-	if [ -d "$gpg_sock_dir" ]; then
-		gpg_mount=', {
-		"source": "'"$gpg_sock_dir"'",
-		"target": "'"$gpg_sock_dir"'",
-		"type": "bind"
-	}'
+# gpg_mount_json
+#
+# Emit the mounts[] entry forwarding the host's gnupg runtime directory,
+# or nothing at all — which is the default, and the safe answer under
+# every driver.
+#
+# VS Code must never receive this mount. The Dev Containers extension
+# forwards the agent itself, and more safely than we could: it relays the
+# host's *restricted* S.gpg-agent.extra socket to whatever the container's
+# own `gpgconf --list-dirs` reports as agent-socket. Mounting the host
+# directory at the same path collapses those two into one file, and the
+# extension's relay opens by unlinking the socket it is about to listen
+# on. That unlink takes the host's live socket with it; gpg-agent watches
+# it with inotify, sees it removed, and shuts down. The host loses its
+# agent every time a container starts, with no gpg-agent in the container
+# to blame — the listener there is the extension's own relay.
+#
+# The devcontainer CLI carries none of that logic, so a CLI-driven
+# container has no agent unless we mount one. DEV_ENV_GPG_MOUNT asks for
+# it. The variable reaches us untouched: the CLI passes its environment
+# through verbatim and adds no marker of its own, which is also why the
+# driver cannot simply be detected.
+#
+# ELECTRON_RUN_AS_NODE only ever refuses, never enables. The extension
+# spawns its bundled CLI through the Code binary and injects that
+# variable, while VS Code strips ELECTRON_* from integrated-terminal
+# environments — so it identifies the extension without mistaking a
+# `devcontainer up` typed into VS Code's own terminal for one. It is
+# undocumented, and blind when the extension drives a Remote-SSH or WSL
+# window (the remote CLI inherits a login shell, so nothing marks it).
+# Used as a veto that only bites someone who opted in by hand, that blind
+# spot costs a warning; used as the enabler, it would silently restore the
+# bug above.
+gpg_mount_json() {
+	local sock_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gnupg"
+
+	[ -n "${DEV_ENV_GPG_MOUNT:-}" ] || return 0
+
+	if [ "${ELECTRON_RUN_AS_NODE:-}" = 1 ]; then
+		warn <<-EOT
+		DEV_ENV_GPG_MOUNT ignored: VS Code is driving and forwards the
+		gpg-agent itself. Mounting $sock_dir as well would unlink the
+		host's socket and stop its agent.
+		EOT
+		return 0
 	fi
 
+	if [ ! -d "$sock_dir" ]; then
+		warn "DEV_ENV_GPG_MOUNT ignored: $sock_dir does not exist."
+		return 0
+	fi
+
+	cat <<-EOT
+	, {
+		"source": "$sock_dir",
+		"target": "$sock_dir",
+		"type": "bind"
+	}
+	EOT
+}
+
+gen_json_overlay() {
 	cat <<EOT
 {
 	"containerEnv": {
@@ -220,7 +278,7 @@ gen_json_overlay() {
 		"source": "$HOME_ENV/.claude.json",
 		"target": "$HOME_ENV/.claude.json",
 		"type": "bind"
-	}$gpg_mount]
+	}$(gpg_mount_json)]
 }
 EOT
 }

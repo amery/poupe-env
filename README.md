@@ -9,8 +9,9 @@ development environments with intelligent host integration.
   prevent pollution of host home
 - **Claude AI Integration**: Automatic bind mounts for `.claude` config
   and state persistence
-- **GPG Signing**: Forwards host GPG agent socket into the container
-  for commit and tag signing
+- **GPG Signing**: The host's gpg-agent reaches the container for commit
+  and tag signing — forwarded by `run.sh` in CLI mode, and by VS Code
+  itself in the DevContainer
 - **Smart Mount System**: Selective bind mounts preserve tool configurations
   while isolating the container
 - **Automatic Setup**: Self-configuring initialisation script
@@ -153,8 +154,8 @@ as release assets by
 
 ### Installation
 
-Download the latest `x` and `docker-builder-run` from
-[docker-builder releases](https://github.com/amery/docker-builder/releases/latest)
+Download the latest `x` and `docker-builder-run` from the docker-builder
+[releases page](https://github.com/amery/docker-builder/releases/latest)
 and place them on your `PATH`:
 
 ```bash
@@ -289,6 +290,18 @@ OpenAI endpoint configured earlier still wins. These come from the baked
 `/etc/profile.d/ollama.sh` (see `docker/Dockerfile`), not the entrypoint, so
 they apply to login shells in both modes. For the host-side reachability
 requirements, see [AGENTS.md](./AGENTS.md#host-access-from-the-container).
+
+### Host-Side Inputs
+
+Read on the host before the container is created, rather than set inside
+it:
+
+- `DEV_ENV_GPG_MOUNT`: bind-mount the host's gpg-agent socket directory
+  into a DevContainer, for commit signing. Needed only with the
+  `devcontainer` CLI, which has no GPG forwarding of its own — VS Code
+  forwards the agent itself, and the mount is skipped with a warning
+  when VS Code is driving, because the two together stop the host's
+  agent. See [AGENTS.md](./AGENTS.md#dev_env_gpg_mount).
 
 ## Troubleshooting
 
